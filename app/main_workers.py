@@ -69,6 +69,44 @@ RSS_FEEDS: list[FeedConfig] = [
 ]
 
 
+def _ensure_db_ready() -> None:
+    """Check DB is migrated and seed symbols if the table is empty."""
+    from sqlalchemy import inspect
+
+    from app.db.models.symbols import Symbol
+    from app.db.session import SessionLocal
+
+    with SessionLocal() as db:
+        tables = inspect(db.get_bind()).get_table_names()
+        if "news_articles" not in tables:
+            raise RuntimeError(
+                "Database tables are missing. Run: uv run alembic upgrade head"
+            )
+        log.info("Database schema verified")
+
+        if db.query(Symbol).count() == 0:
+            log.info("Symbols table empty — seeding")
+            symbols_to_seed: list[tuple[str, str]] = [
+                ("SPY", "SPDR S&P 500 ETF Trust"),
+                ("QQQ", "Invesco QQQ Trust"),
+                ("IWM", "iShares Russell 2000 ETF"),
+                ("AAPL", "Apple Inc."),
+                ("MSFT", "Microsoft Corporation"),
+                ("NVDA", "NVIDIA Corporation"),
+                ("AMZN", "Amazon.com Inc."),
+                ("META", "Meta Platforms Inc."),
+                ("TSLA", "Tesla Inc."),
+                ("AMD", "Advanced Micro Devices Inc."),
+                ("NFLX", "Netflix Inc."),
+                ("GOOGL", "Alphabet Inc."),
+                ("AVGO", "Broadcom Inc."),
+                ("PLTR", "Palantir Technologies Inc."),
+            ]
+            db.add_all([Symbol(ticker=t, name=n) for t, n in symbols_to_seed])
+            db.commit()
+            log.info("Seeded %d symbols", len(symbols_to_seed))
+
+
 async def main() -> None:
     logging.basicConfig(
         level=settings.log_level,
@@ -76,6 +114,7 @@ async def main() -> None:
         datefmt="%Y-%m-%dT%H:%M:%SZ",
     )
     log.info("Starting SignalStack workers (mode=%s)", settings.runtime_mode.value)
+    await asyncio.to_thread(_ensure_db_ready)
 
     edgar = EdgarWorker(tickers=TICKERS)
     rss = RssWorker(feeds=RSS_FEEDS, monitored_tickers=set(TICKERS))
