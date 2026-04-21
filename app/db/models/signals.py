@@ -1,0 +1,59 @@
+from datetime import datetime
+
+from sqlalchemy import BigInteger, DateTime, Integer, Numeric, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db.base import Base
+
+
+class DetectedEvent(Base):
+    """Output of a single detector run (A=news, B=price, C=options)."""
+
+    __tablename__ = "detected_events"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    detector: Mapped[str] = mapped_column(String(1), nullable=False)
+    symbol_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    ticker: Mapped[str] = mapped_column(String(10), nullable=False)
+    event_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    polarity: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    importance: Mapped[float | None] = mapped_column(Numeric(4, 3), nullable=True)
+    confidence: Mapped[float | None] = mapped_column(Numeric(4, 3), nullable=True)
+    source_tier: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    one_sentence_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    news_article_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    llm_label_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    detected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class SignalCandidate(Base):
+    """Scored combination of A+B+C detector outputs for a single ticker."""
+
+    __tablename__ = "signal_candidates"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    symbol_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    ticker: Mapped[str] = mapped_column(String(10), nullable=False)
+    news_event_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    price_event_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    options_event_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    score: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
+    news_score: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
+    price_score: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
+    options_score: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
+    liquidity_score: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
+    data_confidence_score: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
+    provider_confidence: Mapped[float | None] = mapped_column(Numeric(4, 3), nullable=True)
+    grade: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    promoted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    runtime_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
