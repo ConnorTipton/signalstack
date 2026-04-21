@@ -571,6 +571,18 @@ wheels = [
 ]
 
 [[package]]
+name = "respx"
+version = "0.21.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fd/72/979e475ade69bcbb18288604aacbdc77b44b3bd1133e2c16660282a9f4b8/respx-0.21.1.tar.gz", hash = "sha256:0bd7fe21bfaa52106caa1223ce61224cf30786985f17c63c5d71eff0307ee8af", size = 28306, upload-time = "2024-03-27T20:41:59.929Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a5/5c/428523509b26c243c1e93aa2ae385def597ef1fbdbbd47978430ba19037d/respx-0.21.1-py2.py3-none-any.whl", hash = "sha256:05f45de23f0c785862a2c92a3e173916e8ca88e4caad715dd5f68584d6053c20", size = 25130, upload-time = "2024-03-27T20:41:55.709Z" },
+]
+
+[[package]]
 name = "ruff"
 version = "0.8.6"
 source = { registry = "https://pypi.org/simple" }
@@ -623,6 +635,7 @@ dev = [
     { name = "httpx" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "respx" },
     { name = "ruff" },
 ]
 
@@ -639,6 +652,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.4,<9.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.25.0,<0.26" },
     { name = "python-telegram-bot", specifier = ">=21.9,<22.0" },
+    { name = "respx", marker = "extra == 'dev'", specifier = ">=0.21.0,<0.22" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.4,<0.9" },
     { name = "sqlalchemy", specifier = ">=2.0.36,<2.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0,<0.33" },
