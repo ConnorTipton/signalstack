@@ -78,8 +78,8 @@ async def test_label_worker_llm_error_does_not_abort_loop():
     article.body = "Revenue up."
 
     client = MagicMock()
-    client._model = "llama3.1:8b"
-    client.generate = AsyncMock(side_effect=RuntimeError("Ollama down"))
+    client._model = "claude-haiku-4-5-20251001"
+    client.generate = AsyncMock(side_effect=RuntimeError("LLM unavailable"))
 
     worker = LabelWorker(client=client, interval_seconds=0.01, batch_size=1)
     worker._fetch_unlabeled = lambda n: [article]

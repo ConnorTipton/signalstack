@@ -23,7 +23,6 @@ from sqlalchemy.orm import Session
 from app.db.models.news import LlmNewsLabel, NewsArticle
 from app.db.session import SessionLocal
 from app.llm.anthropic_client import AnthropicClient
-from app.llm.ollama_client import OllamaClient
 from app.llm.prefilter import prefilter_article
 from app.llm.prompt import build_prompt, parse_response
 
@@ -40,7 +39,7 @@ class LabelWorker:
     ----------
     client:
         LLM client with a ``generate(prompt) -> tuple[str, int]`` async method.
-        Defaults to an OllamaClient built from settings if not provided.
+        Defaults to an AnthropicClient built from settings if not provided.
     interval_seconds:
         Seconds between labeling cycles. Default 60.
     batch_size:
@@ -49,7 +48,7 @@ class LabelWorker:
 
     def __init__(
         self,
-        client: OllamaClient | None = None,
+        client: AnthropicClient | None = None,
         *,
         interval_seconds: float = _DEFAULT_INTERVAL,
         batch_size: int = _DEFAULT_BATCH,
@@ -57,10 +56,10 @@ class LabelWorker:
         if client is None:
             from app.core.config import settings
 
-            if settings.cloud_llm_api_key:
-                client = AnthropicClient(api_key=settings.cloud_llm_api_key)
-            else:
-                client = OllamaClient(base_url=settings.ollama_base_url, model=settings.ollama_model)
+            client = AnthropicClient(
+                api_key=settings.cloud_llm_api_key or "",
+                model=settings.claude_model,
+            )
         self._client = client
         self._interval = interval_seconds
         self._batch_size = batch_size

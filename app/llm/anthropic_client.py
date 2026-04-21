@@ -1,7 +1,6 @@
 """Anthropic Claude client for LLM news labeling.
 
-Matches the same generate() interface as OllamaClient so the LabelWorker
-requires no changes when swapping backends.
+Matches the same generate() interface contract used by the LabelWorker.
 """
 
 from __future__ import annotations

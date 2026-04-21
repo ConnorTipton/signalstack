@@ -36,9 +36,8 @@ class Settings(BaseSettings):
 
     marketaux_api_token: str | None = None
 
-    ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.1:8b"
     cloud_llm_api_key: str | None = None
+    claude_model: str = "claude-haiku-4-5-20251001"
 
     telegram_bot_token: str | None = None
     telegram_chat_id: str | None = None
