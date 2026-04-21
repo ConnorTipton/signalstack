@@ -20,6 +20,7 @@ import contextlib
 import logging
 
 from app.core.config import settings
+from app.ingest_market.tradier_worker import TradierWorker
 from app.ingest_news.edgar_worker import EdgarWorker
 from app.ingest_news.label_worker import LabelWorker
 from app.ingest_news.marketaux_worker import MarketauxWorker
@@ -88,6 +89,7 @@ async def main() -> None:
             asyncio.create_task(rss.run(), name="rss"),
             asyncio.create_task(marketaux.run(), name="marketaux"),
             asyncio.create_task(label.run(), name="label"),
+            asyncio.create_task(TradierWorker(symbols=TICKERS).run(), name="tradier_quotes"),
         ]
 
         if settings.tradier_api_token:
