@@ -228,7 +228,7 @@ def test_process_closes_position_on_time_stop():
 
 
 def test_process_does_not_close_position_before_time_stop():
-    future_stop = _NOW + timedelta(hours=2)
+    future_stop = datetime.now(UTC) + timedelta(hours=2)
     pos = _position(status="open", time_stop_at=future_stop)
     db = MagicMock()
     db.flush = MagicMock()

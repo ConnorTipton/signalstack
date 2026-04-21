@@ -46,7 +46,7 @@ select = [
     "C4",  # flake8-comprehensions
     "SIM", # flake8-simplify
 ]
-ignore = ["E501"]  # line length enforced by formatter
+ignore = ["E501", "B008"]  # E501: line length enforced by formatter; B008: standard FastAPI Depends pattern
 
 [tool.ruff.format]
 quote-style = "double"
