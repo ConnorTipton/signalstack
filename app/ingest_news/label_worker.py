@@ -148,7 +148,7 @@ class LabelWorker:
     @staticmethod
     def _fetch_unlabeled(batch_size: int) -> list[NewsArticle]:
         with SessionLocal() as db:
-            labeled_subq = db.query(LlmNewsLabel.article_id).subquery()
+            labeled_subq = db.query(LlmNewsLabel.article_id).scalar_subquery()
             return (
                 db.query(NewsArticle)
                 .filter(

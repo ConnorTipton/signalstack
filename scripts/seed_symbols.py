@@ -20,6 +20,8 @@ SYMBOLS: list[tuple[str, str]] = [
     ("AMD", "Advanced Micro Devices Inc."),
     ("NFLX", "Netflix Inc."),
     ("GOOGL", "Alphabet Inc."),
+    ("AVGO", "Broadcom Inc."),
+    ("PLTR", "Palantir Technologies Inc."),
 ]
 
 
