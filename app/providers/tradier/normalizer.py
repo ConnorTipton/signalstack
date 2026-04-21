@@ -110,6 +110,60 @@ def normalize_option_chain(raw: dict) -> list[OptionContractQuote]:
     return result
 
 
+def _parse_epoch_ms(value: str | int | None) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def _to_float(value: object) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (ValueError, TypeError):
+        return None
+
+
+def _to_int(value: object) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (ValueError, TypeError):
+        return None
+
+
+def normalize_stream_quote(event: dict) -> Quote | None:
+    """Convert a Tradier streaming quote event into a Quote dataclass.
+
+    Stream field names differ from REST: bidsz/asksz instead of
+    bidsize/asksize, and timestamps are epoch-millisecond strings.
+    """
+    symbol = event.get("symbol")
+    if not symbol:
+        return None
+
+    bid_ms = _parse_epoch_ms(event.get("biddate"))
+    ask_ms = _parse_epoch_ms(event.get("askdate"))
+    ts_ms = max(bid_ms, ask_ms) if bid_ms is not None and ask_ms is not None else bid_ms or ask_ms
+    ts = datetime.fromtimestamp(ts_ms / 1000, tz=UTC) if ts_ms else datetime.now(UTC)
+
+    return Quote(
+        symbol=symbol,
+        timestamp=ts,
+        bid=_to_float(event.get("bid")),
+        ask=_to_float(event.get("ask")),
+        last=_to_float(event.get("last")),
+        bid_size=_to_int(event.get("bidsz")),
+        ask_size=_to_int(event.get("asksz")),
+        source_name=_SOURCE,
+    )
+
+
 def normalize_expirations(raw: dict) -> list[date]:
     expirations = raw.get("expirations") or {}
     dates = expirations.get("date") or []
