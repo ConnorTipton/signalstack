@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: signalstack_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: signalstack
+      POSTGRES_PASSWORD: signalstack
+      POSTGRES_DB: signalstack
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U signalstack -d signalstack"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

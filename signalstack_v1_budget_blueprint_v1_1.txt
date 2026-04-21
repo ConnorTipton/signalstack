@@ -1,0 +1,800 @@
+SignalStack V1 - Budget Blueprint
+Version: 1.1
+Purpose: This file replaces the original SignalStack V1 blueprint with a lower-cost operating design while preserving the same core goal: a personal options-alert research engine focused on signal quality, tradability, and replayability.
+
+==================================================
+1. PROJECT GOAL
+==================================================
+Build a personal options-alert research engine that monitors a small set of liquid U.S. large-cap stocks and ETFs in real time and sends high-conviction bullish or bearish options alerts only when all three conditions align:
+1) a meaningful news catalyst,
+2) price confirmation,
+3) unusual or strongly suggestive directional options activity.
+
+This is a personal research and paper-trading tool first. It is not a public product, not a social trading app, and not a fully autonomous trading bot in V1.
+
+Primary objective:
+- Maximize signal quality, tradability, and reviewability.
+
+Secondary objective:
+- Build a system that can later be extended with stronger paid data, more symbols, additional structures, and live execution.
+
+Budget objective:
+- Keep normal monthly operating cost under $100 by default.
+
+==================================================
+2. V1 SCOPE
+==================================================
+In scope:
+- 20 to 30 liquid large-cap stocks and ETFs.
+- U.S. regular market hours only.
+- Bullish and bearish alerts.
+- Long calls and long puts only.
+- Next-week expiration by default.
+- Same-week expiration only after paper validation.
+- Low-cost real-time or near-real-time market/options data depending on provider mode.
+- Real-time or near-real-time news from official feeds plus a low-cost aggregator.
+- Telegram alerts.
+- Optional paper order routing.
+- Full logging and replay.
+- Provider confidence tracking.
+
+Out of scope:
+- Live trading automation.
+- X/Twitter sentiment as a primary detector.
+- Discord/community features.
+- Multi-leg spreads.
+- Mobile app.
+- Public SaaS/productization.
+- Black-box LLM-only trade decisions.
+- Enterprise-grade news/data spend in V1.
+
+==================================================
+3. CORE DESIGN PRINCIPLES
+==================================================
+A. Liquidity first
+Choose highly liquid underlyings and contracts with acceptable spreads, visible activity, and realistic fills.
+
+B. Rules first, LLM second
+The signal trigger must be rule-based. The LLM should summarize, classify, and explain, not freely invent trades.
+
+C. Official news first
+Prefer direct issuer, SEC, exchange, and major wire releases over social chatter and scraped noise.
+
+D. Every alert must be decision-ready
+Each alert should include the why, the contract idea, the entry condition, invalidation, target, and time stop.
+
+E. Paper first
+Validate the workflow with alerts and paper execution before any live trading.
+
+F. Replay matters
+The system must store enough raw and normalized data to replay historical sessions exactly as the engine saw them.
+
+G. Graceful degradation
+Cheap sources are uneven. The system must keep working when a provider is weaker, but it must tighten thresholds and downgrade alert confidence when source quality falls.
+
+==================================================
+4. RECOMMENDED STACK
+==================================================
+Development environment:
+- VS Code as the primary editor.
+- Claude Code extension in VS Code.
+- Claude CLI in VS Code integrated terminal for project-wide edits and commands.
+- Git + GitHub for version control.
+
+Language and backend:
+- Python.
+- FastAPI for internal API/review endpoints.
+- Pydantic for validation.
+- SQLAlchemy for ORM/database access.
+
+Data and storage:
+- PostgreSQL as the main database.
+- Timescale/Tiger Data hypertables for time-series/event-heavy tables.
+- Docker Compose for local multi-service setup.
+
+External providers:
+Market/options data:
+- Primary: Tradier brokerage market data and option chains.
+- Fallback/dev mode: Alpaca market data plus Alpaca options/news feeds.
+- Optional later upgrade only if needed: Alpaca paid OPRA tier or a higher-end options vendor.
+
+News:
+- Primary official-catalyst layer: SEC EDGAR RSS/API, company investor-relations feeds, GlobeNewswire RSS, exchange and issuer press release feeds.
+- Secondary broad-market layer: Marketaux Basic or Standard.
+- Tertiary optional backup: Alpaca news feed and/or StockNewsAPI Basic.
+
+LLM:
+- Primary: local LLM runtime through LM Studio or Ollama.
+- Secondary fallback only for harder classifications/explanations: small cloud model budget.
+
+Execution and alerts:
+- Alpaca paper trading by default.
+- Telegram Bot API for alerts.
+
+Access/remote operations:
+- Local-first deployment.
+- Optional Tailscale for secure remote access instead of paid hosting.
+
+Quality and automation:
+- pytest for tests.
+- Ruff for lint/format checks.
+- GitHub Actions for CI.
+
+==================================================
+5. WHY THIS STACK
+==================================================
+Tradier:
+Strong low-cost fit if available because it provides real-time U.S. stock and options market data to brokerage account holders, option chains, streaming support, and a sandbox environment. It is the best default replacement for an expensive all-in-one options data vendor.
+
+Alpaca:
+Best used as the paper-execution layer and as a secondary market/news adapter. Alpaca is also useful as a fallback market-data source during development and as a future paid upgrade path if better options coverage becomes necessary.
+
+Official feeds + Marketaux:
+Official feeds are the cleanest low-cost way to detect real catalysts. Marketaux broadens coverage across many sources and reduces the chance of missing relevant headlines between official releases.
+
+Local LLMs:
+A local model can handle routine headline labeling and short explanations cheaply. A tiny cloud budget should only be used for edge cases, retries, or quality checks.
+
+Python:
+Best fit for data ingestion, event processing, APIs, testing, and integration with multiple lower-cost providers.
+
+==================================================
+6. RECOMMENDED V1 UNIVERSE
+==================================================
+Start with a small liquid universe such as:
+- SPY
+- QQQ
+- IWM
+- AAPL
+- MSFT
+- NVDA
+- AMZN
+- META
+- TSLA
+- AMD
+- NFLX
+- GOOGL
+
+Then expand gradually only after the engine is stable.
+
+Selection rule for new symbols:
+- highly liquid underlying,
+- active weekly options,
+- generally tight spreads,
+- frequent news flow,
+- strong same-day options activity.
+
+==================================================
+7. OPERATING MODES
+==================================================
+The system should support three explicit modes.
+
+Mode A: Build mode
+Use when minimizing spend and validating plumbing.
+- Alpaca free market/news where helpful,
+- official news feeds,
+- local LLM only,
+- dry alerts only,
+- options abnormality can run in proxy mode,
+- no paper orders.
+
+Mode B: Core budget mode
+Default V1 target.
+- Tradier real-time market/options data,
+- official news feeds,
+- Marketaux Basic or Standard,
+- local LLM plus tiny cloud fallback,
+- Telegram alerts,
+- optional Alpaca paper routing.
+
+Mode C: Upgrade mode
+Use only after clear evidence the cheap stack is missing too many tradeable setups.
+- keep the same architecture,
+- swap in stronger paid options data and/or stronger paid news,
+- preserve all normalized schemas and replay assumptions.
+
+==================================================
+8. SYSTEM ARCHITECTURE
+==================================================
+There should be one repository with three main runtime roles.
+
+1. Ingestion workers
+- connect to Tradier, Alpaca, Marketaux, and official feed sources,
+- normalize provider events,
+- store raw payloads,
+- store normalized rows,
+- handle reconnect/retry/dedup,
+- label each event with source_tier and provider_confidence.
+
+2. Signal engine worker
+- read new events,
+- run detectors,
+- score candidates,
+- select contracts,
+- create alerts,
+- optionally send paper orders to Alpaca,
+- downgrade or suppress alerts when data confidence is weak.
+
+3. Review/API service
+- expose recent alerts,
+- expose health checks,
+- expose daily performance and symbol-level review,
+- support replay/reporting workflows,
+- expose provider health and ingestion lag.
+
+==================================================
+9. PROVIDER HIERARCHY
+==================================================
+Build adapter interfaces so providers can be swapped without rewriting detector logic.
+
+Market/options adapter priority:
+1. Tradier live
+2. Alpaca live/free
+3. recorded replay data
+
+News adapter priority:
+1. Official source feeds
+2. Marketaux
+3. Alpaca news
+4. StockNewsAPI optional
+
+Source tiers for news:
+- Tier 1: SEC filings, issuer IR releases, exchange notices, top-tier direct wire releases.
+- Tier 2: reputable aggregated articles with clear ticker mapping.
+- Tier 3: backup/general market articles with weaker specificity.
+
+Best practice:
+- detector logic should consume normalized events, never provider-specific payloads directly,
+- all provider routing decisions should live in adapters or router modules,
+- each alert should record which sources contributed to the decision.
+
+==================================================
+10. FOLDER STRUCTURE
+==================================================
+Suggested repo layout:
+
+signalstack/
+  app/
+    api/
+    core/
+    db/
+    ingest_market/
+    ingest_news/
+    llm/
+    providers/
+      tradier/
+      alpaca/
+      official_feeds/
+      marketaux/
+    signals/
+    contracts/
+    execution/
+    alerts/
+    replay/
+    review/
+  tests/
+  scripts/
+  docker/
+  .github/workflows/
+  CLAUDE.md
+  CLAUDE.local.md
+  pyproject.toml
+  docker-compose.yml
+
+==================================================
+11. DATABASE MODEL
+==================================================
+Store both raw provider payloads and normalized tables.
+
+Core tables:
+- symbols
+- provider_health
+- provider_configs
+- underlying_bars_1m
+- underlying_quotes
+- option_quotes
+- option_trades
+- option_chain_snapshots
+- news_articles
+- news_article_tickers
+- llm_news_labels
+- detected_events
+- signal_candidates
+- alerts
+- paper_orders
+- paper_positions
+- position_events
+- daily_metrics
+
+Raw event tables:
+- raw_tradier_events
+- raw_alpaca_market_events
+- raw_official_news_events
+- raw_marketaux_events
+- raw_news_backup_events
+
+Add these important normalized fields:
+- source_name
+- source_tier
+- provider_confidence
+- provider_event_id
+- provider_published_at
+- received_at
+- content_hash
+- related_url
+- normalization_version
+
+Time standard:
+- store all timestamps in UTC,
+- convert to ET only in review/presentation layers.
+
+==================================================
+12. NEWS INGESTION DESIGN
+==================================================
+The news layer is now multi-source by design.
+
+Pipeline:
+1. Fetch official feeds first.
+2. Fetch aggregator sources second.
+3. Normalize headline/body/URL/tickers/published time.
+4. Deduplicate across sources.
+5. Run rules-based prefilter.
+6. Run LLM labeling only on candidates that survive prefilter.
+7. Promote the event to detector input.
+
+News dedupe keys:
+- exact URL match,
+- normalized title hash,
+- same ticker cluster plus close publish time,
+- same wire item updated by a second source.
+
+News confidence rules:
+- Tier 1 official source can pass with one strong item.
+- Tier 2 aggregated item should usually require either a second confirming source or strong price confirmation.
+- Tier 3 items should almost never trigger by themselves.
+
+LLM should not read everything.
+Use keyword/rules prefilters first:
+- earnings,
+- guidance,
+- SEC filing,
+- FDA/regulatory,
+- analyst action,
+- M&A/partnership,
+- recall/litigation,
+- product launch,
+- executive change,
+- major macro exposure tied to a specific ticker.
+
+==================================================
+13. DETECTOR LAYER
+==================================================
+An alert still requires alignment across three detectors, but the cheaper stack changes how confidence is handled.
+
+Detector A: News catalyst
+Purpose:
+- identify meaningful bullish or bearish catalysts.
+
+Required outputs:
+- ticker
+- event_type
+- polarity
+- importance
+- confidence
+- source_tier
+- one_sentence_summary
+
+Example event types:
+- earnings beat/miss
+- guidance raise/cut
+- analyst upgrade/downgrade
+- partnership/M&A
+- legal/regulatory
+- product launch
+- company-specific macro-sensitive event
+
+Detector B: Price confirmation
+Purpose:
+- refuse to alert on headlines that do not produce real price confirmation.
+
+Examples:
+- break of first 5-minute high after bullish catalyst,
+- reclaim and hold above VWAP,
+- loss of support after bearish catalyst,
+- failed bounce and downside continuation.
+
+Detector C: Options activity
+Purpose:
+- confirm that options activity is abnormally directional.
+
+Full mode examples:
+- call/put trade burst vs rolling baseline,
+- elevated notional concentration,
+- unusual activity in one expiry/strike,
+- quote activity plus trade activity increasing together,
+- liquidity remains acceptable.
+
+Proxy mode examples:
+- concentration of chain attention in one expiry/strike,
+- sudden spread improvement plus activity pickup,
+- same-direction contract clustering,
+- near-the-money next-week interest rising quickly,
+- option activity signal is suggestive but not fully confirmed.
+
+Cheap-stack rule:
+- if options detector is only in proxy mode, the system may issue a lower-confidence alert or watch alert,
+- high-priority alerts should require stronger options evidence.
+
+==================================================
+14. SIGNAL SCORING
+==================================================
+Use a transparent weighted score.
+
+Suggested initial score:
+- news quality: 35
+- price confirmation: 30
+- options abnormality: 20
+- liquidity quality: 10
+- data confidence: 5
+
+Suggested thresholds:
+- 82 and above = high-priority alert
+- 72 to 81 = valid alert
+- 65 to 71 = watch alert or log-only depending on mode
+- below 65 = log only, no alert
+
+Additional caps:
+- proxy-mode options data cannot produce high-priority alerts unless news is Tier 1 and price confirmation is strong,
+- Tier 3 news cannot produce an alert without exceptional price and options confirmation,
+- weak provider confidence should cap the maximum alert grade.
+
+Every rejected candidate must store a rejection reason such as:
+- weak catalyst,
+- no price confirmation,
+- options activity not unusual enough,
+- options data only suggestive,
+- contract too illiquid,
+- signal too late in session,
+- provider confidence too low.
+
+==================================================
+15. CONTRACT SELECTION RULES
+==================================================
+V1 contract selection should stay simple and disciplined.
+
+Default rules:
+- next-week expiration by default,
+- near-the-money or one strike in-the-money,
+- reject wide spreads,
+- prefer visible open interest,
+- prefer same-day trading activity,
+- reject dead or hard-to-fill chains.
+
+Additional budget-stack rules:
+- if quote quality is uncertain, prefer the most liquid obvious strikes,
+- if spread data is unreliable, downgrade the signal rather than forcing a contract pick,
+- contract selection must record why a contract was chosen and why alternatives were rejected.
+
+Why next-week first:
+- gives the alert engine more room for imperfect timing,
+- reduces fragility relative to very short-dated contracts.
+
+Why single-leg first:
+- easier to evaluate signal quality without the extra variables of spreads.
+
+==================================================
+16. ALERT FORMAT
+==================================================
+Every alert should be decision-ready.
+
+Template:
+Ticker | Direction | Score | Confidence Grade
+Reason: short explanation of catalyst + price + options confirmation
+Contract: expiration + strike + call/put
+Entry: the price condition that must remain valid
+Invalidation: what breaks the setup
+Target 1: first trim level
+Target 2: final target or exit condition
+Time stop: when to close if no follow-through
+Liquidity: quick note on spread/quality
+Data note: provider mode and any confidence caveat
+
+Example:
+AAPL BULLISH | Score 82 | Confidence A-
+Reason: positive catalyst + breakout + call activity spike
+Contract: next-week ATM call
+Entry: only if AAPL stays above breakout level
+Invalidation: lose breakout/VWAP
+Target 1: trim at +25% option premium
+Target 2: exit remainder at +50% or end-of-day
+Time stop: close by 3:30 PM ET if no follow-through
+Liquidity: spread acceptable
+Data note: Tradier live options + Tier 1 news source
+
+==================================================
+17. PAPER EXECUTION RULES
+==================================================
+If paper execution is enabled:
+- use limit orders only,
+- trade one contract only,
+- do not average down,
+- do not scale in,
+- one open signal per symbol at a time,
+- cancel entry if price condition breaks,
+- auto-close by time stop if thesis stalls.
+
+Alpaca paper trading remains the default execution simulator unless a later revision explicitly swaps this out.
+
+==================================================
+18. REVIEW AND REPLAY
+==================================================
+This project must support replay.
+
+Replay should answer:
+- what information the engine had at a given timestamp,
+- which provider supplied each event,
+- whether the news label was correct,
+- whether price confirmed in time,
+- whether options activity truly spiked or was only suggestive,
+- whether the contract choice was reasonable,
+- whether the order would likely have filled,
+- whether the exit logic helped or hurt.
+
+Do not rely only on candle backtests. This strategy depends on event timing, news sequencing, source quality, and options flow.
+
+==================================================
+19. DEVELOPMENT WORKFLOW
+==================================================
+Use Claude Code as an implementation copilot, not the trading brain.
+
+Recommended workflow:
+1. Open repo in VS Code.
+2. Use Claude Code extension for file-aware coding.
+3. Use Claude CLI in integrated terminal for repo-wide tasks.
+4. Keep a concise project-level CLAUDE.md.
+5. Work one milestone at a time.
+6. Run tests and lint after each milestone.
+7. Commit small, reviewable changes.
+8. Start new Claude sessions at logical phase boundaries.
+
+CLAUDE.md should include:
+- architecture summary,
+- build/test commands,
+- folder ownership rules,
+- style rules,
+- requirement to write tests for signal logic,
+- requirement to store raw payloads before normalization,
+- requirement to preserve provider abstraction,
+- instruction not to add a frontend unless explicitly asked.
+
+==================================================
+20. IMPLEMENTATION BEST PRACTICES FOR THE BUDGET STACK
+==================================================
+A. Prefer streaming where available
+- stream market data from the primary provider instead of polling when possible,
+- use polling mainly for RSS/feed sources and periodic chain refreshes.
+
+B. Keep ingestion idempotent
+- every normalized event should have a deterministic dedupe key,
+- retries must not create duplicate alerts or duplicate raw rows.
+
+C. Separate source confidence from signal quality
+- a good setup on weak data is not the same as a good setup on strong data,
+- keep both scores explicit.
+
+D. Cache aggressively
+- cache symbol metadata, expiration calendars, and frequently used chain lookups,
+- only refresh heavy endpoints when price/news activity justifies it.
+
+E. LLM budget discipline
+- only send shortlisted events to an LLM,
+- save prompts/responses for replay,
+- prefer small local models first.
+
+F. Make provider failures visible
+- track lag, disconnects, empty responses, parse failures, and stale-source windows,
+- expose provider health in the review API.
+
+==================================================
+21. WHAT NOT TO USE FOR V1
+==================================================
+Avoid these as primary V1 choices:
+- expensive institutional data stacks before validation,
+- X/Twitter sentiment as a primary trigger,
+- browser-automation-heavy scraping workflows,
+- multi-agent swarms,
+- live auto-execution,
+- UI-first development.
+
+Reason:
+They add complexity or cost without improving the core signal engine enough for V1.
+
+==================================================
+22. BUILD PHASES
+==================================================
+Phase 1: Project setup
+Deliverables:
+- repo initialized,
+- pyproject.toml,
+- Docker Compose,
+- Postgres service,
+- FastAPI skeleton,
+- Ruff,
+- pytest,
+- GitHub Actions,
+- CLAUDE.md.
+
+Phase 2: Database and models
+Deliverables:
+- schema,
+- migrations,
+- hypertable-backed time-series tables,
+- raw event tables,
+- seed symbol list,
+- provider health tables,
+- source confidence fields.
+
+Phase 3: Market/options ingestion
+Deliverables:
+- Tradier ingestion worker,
+- Alpaca fallback adapter,
+- reconnect logic,
+- normalized writes,
+- raw payload storage.
+
+Phase 4: News ingestion
+Deliverables:
+- official feeds ingestion worker,
+- Marketaux ingestion worker,
+- optional Alpaca/backup news adapter,
+- dedupe logic,
+- create/update/remove article handling where supported,
+- ticker mapping,
+- LLM classification.
+
+Phase 5: Signal detectors
+Deliverables:
+- news detector,
+- price detector,
+- options detector,
+- proxy-mode logic,
+- scoring module,
+- tests.
+
+Phase 6: Contract selector
+Deliverables:
+- chain loader,
+- liquidity filters,
+- selector module,
+- contract rejection logging.
+
+Phase 7: Alerting
+Deliverables:
+- Telegram integration,
+- formatter,
+- alert logs,
+- retry handling,
+- confidence-grade display.
+
+Phase 8: Paper execution
+Deliverables:
+- Alpaca client integration,
+- optional paper order router,
+- paper fill logging,
+- position manager.
+
+Phase 9: Review API
+Deliverables:
+- recent alerts endpoint,
+- performance endpoint,
+- open positions endpoint,
+- health endpoint,
+- provider health endpoint.
+
+Phase 10: Replay engine
+Deliverables:
+- event player,
+- scenario runner,
+- replay reports,
+- per-detector postmortems,
+- per-provider source trace.
+
+==================================================
+23. SUCCESS METRICS
+==================================================
+Judge V1 by quality, not hype.
+
+Track:
+- percent of alerts that were actually tradeable,
+- percent of alerts sent before most of the move,
+- average spread quality,
+- false positive rate,
+- alerts per day,
+- paper win rate,
+- average gain,
+- average loss,
+- expectancy,
+- max drawdown,
+- performance by catalyst type,
+- performance by time of day,
+- performance by source tier,
+- missed-trade rate caused by provider weakness.
+
+==================================================
+24. TARGET MONTHLY OPERATING BUDGET
+==================================================
+Default target:
+- Tradier live data: brokerage-account-based access
+- Marketaux Basic or Standard: about $24 to $49/month depending on billing plan
+- local LLM runtime: $0 recurring
+- cloud LLM fallback: small capped budget
+- Alpaca paper trading: $0
+- Telegram: $0
+- local infrastructure: $0
+- optional Tailscale: $0 personal tier
+
+Recommended normal operating target:
+- about $30 to $70/month
+
+Hard budget cap:
+- stay under $100/month unless a later revision explicitly approves a provider upgrade.
+
+==================================================
+25. FIRST 30-DAY PLAN
+==================================================
+Week 1:
+- initialize repo,
+- create CLAUDE.md,
+- set up uv,
+- set up Docker Compose,
+- set up DB,
+- set up FastAPI,
+- set up lint/tests/CI.
+
+Week 2:
+- build Tradier ingestion,
+- build Alpaca fallback adapter,
+- store underlying and option events,
+- build official news feed ingestion,
+- store article events.
+
+Week 3:
+- add Marketaux ingestion,
+- build headline classification,
+- build dedupe logic,
+- build three detectors,
+- build initial scoring logic.
+
+Week 4:
+- build contract selector,
+- build Telegram alerts,
+- run dry-alerts only,
+- no paper orders yet.
+
+After Week 4:
+- add Alpaca paper routing,
+- build replay engine,
+- tighten thresholds and liquidity rules,
+- review whether budget stack is missing too many valid setups.
+
+==================================================
+26. NEXT ACTIONS
+==================================================
+Immediate next moves:
+1. Remove the old blueprint file from project files if you no longer want it as the active source of truth.
+2. Upload this replacement blueprint file to project files.
+3. Paste short project instructions into Project settings if needed.
+4. Start the first chat in that project with:
+   "Use the uploaded budget blueprint as the source of truth for SignalStack V1. Help me execute Phase 1 only."
+
+==================================================
+27. SOURCE OF TRUTH RULE
+==================================================
+This file is the main V1 source-of-truth document unless a later file explicitly replaces a section.
+If future decisions conflict with this file, preserve these priorities:
+1. Liquidity and tradability over number of alerts.
+2. Rules-based triggers over black-box model behavior.
+3. Replayability and logging over speed of adding features.
+4. Paper validation before live capital.
+5. Narrow, working scope before expansion.
+6. Cheap, swappable provider design over premature vendor lock-in.

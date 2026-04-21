@@ -1,0 +1,49 @@
+from enum import Enum
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class RuntimeMode(str, Enum):
+    BUILD = "build"
+    CORE = "core"
+    UPGRADE = "upgrade"
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    app_name: str = "signalstack"
+    environment: str = Field(default="local")
+    runtime_mode: RuntimeMode = RuntimeMode.BUILD
+    log_level: str = "INFO"
+
+    database_url: str = Field(
+        default="postgresql+psycopg://signalstack:signalstack@localhost:5432/signalstack"
+    )
+
+    tradier_api_token: str | None = None
+    tradier_account_id: str | None = None
+    tradier_environment: str = "sandbox"
+
+    alpaca_api_key: str | None = None
+    alpaca_secret_key: str | None = None
+    alpaca_paper: bool = True
+
+    marketaux_api_token: str | None = None
+
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.1:8b"
+    cloud_llm_api_key: str | None = None
+
+    telegram_bot_token: str | None = None
+    telegram_chat_id: str | None = None
+
+    alerts_dry_run: bool = True
+
+
+settings = Settings()
