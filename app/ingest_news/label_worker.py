@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.news import LlmNewsLabel, NewsArticle
 from app.db.session import SessionLocal
+from app.llm.anthropic_client import AnthropicClient
 from app.llm.ollama_client import OllamaClient
 from app.llm.prefilter import prefilter_article
 from app.llm.prompt import build_prompt, parse_response
@@ -56,7 +57,10 @@ class LabelWorker:
         if client is None:
             from app.core.config import settings
 
-            client = OllamaClient(base_url=settings.ollama_base_url, model=settings.ollama_model)
+            if settings.cloud_llm_api_key:
+                client = AnthropicClient(api_key=settings.cloud_llm_api_key)
+            else:
+                client = OllamaClient(base_url=settings.ollama_base_url, model=settings.ollama_model)
         self._client = client
         self._interval = interval_seconds
         self._batch_size = batch_size
