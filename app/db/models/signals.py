@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import BigInteger, DateTime, Integer, Numeric, String, Text, func
+from sqlalchemy import BigInteger, Date, DateTime, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -54,6 +54,19 @@ class SignalCandidate(Base):
     promoted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     runtime_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Contract selection (Phase 6)
+    contract_symbol: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    contract_expiration: Mapped[date | None] = mapped_column(Date, nullable=True)
+    contract_strike: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    contract_type: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    contract_bid: Mapped[float | None] = mapped_column(Numeric(10, 4), nullable=True)
+    contract_ask: Mapped[float | None] = mapped_column(Numeric(10, 4), nullable=True)
+    contract_spread_pct: Mapped[float | None] = mapped_column(Numeric(6, 4), nullable=True)
+    contract_oi: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    contract_volume: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    contract_selection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    contract_rejection_json: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    contract_selected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
