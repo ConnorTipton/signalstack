@@ -99,12 +99,9 @@ class TradierClient:
         )
         return normalize_bars(symbol, raw)
 
-    async def get_option_chain(
-        self,
-        symbol: str,
-        expiration: date,
-    ) -> list[OptionContractQuote]:
-        raw = await self._get(
+    async def fetch_option_chain_raw(self, symbol: str, expiration: date) -> dict:
+        """Return the raw Tradier response dict for payload storage."""
+        return await self._get(
             "/v1/markets/options/chains",
             params={
                 "symbol": symbol,
@@ -112,6 +109,13 @@ class TradierClient:
                 "greeks": "true",
             },
         )
+
+    async def get_option_chain(
+        self,
+        symbol: str,
+        expiration: date,
+    ) -> list[OptionContractQuote]:
+        raw = await self.fetch_option_chain_raw(symbol, expiration)
         return normalize_option_chain(raw)
 
     async def get_option_expirations(self, symbol: str) -> list[date]:
