@@ -95,20 +95,29 @@ class MarketauxWorker:
         if existing is not None:
             return
 
-        # Write raw payload before any normalized writes
-        db.add(
-            RawMarketauxEvent(
-                source_name=_SOURCE_NAME,
-                source_tier=2,
-                provider_event_id=article.uuid,
-                provider_published_at=article.published_at,
-                received_at=received_at,
-                content_hash=article.content_hash,
-                related_url=article.url,
-                normalization_version=_NORMALIZATION_VERSION,
-                payload=article.raw,
-            )
+        # Write raw payload before any normalized writes.
+        # Skip if a raw row with the same content_hash already exists — two
+        # articles in the same API response can share an identical title.
+        raw_exists = article.content_hash and (
+            db.query(RawMarketauxEvent)
+            .filter_by(content_hash=article.content_hash)
+            .first()
+            is not None
         )
+        if not raw_exists:
+            db.add(
+                RawMarketauxEvent(
+                    source_name=_SOURCE_NAME,
+                    source_tier=2,
+                    provider_event_id=article.uuid,
+                    provider_published_at=article.published_at,
+                    received_at=received_at,
+                    content_hash=article.content_hash,
+                    related_url=article.url,
+                    normalization_version=_NORMALIZATION_VERSION,
+                    payload=article.raw,
+                )
+            )
 
         # Pass 2: cross-source URL dedup — Tier 1 article at same URL
         dupe: NewsArticle | None = None
