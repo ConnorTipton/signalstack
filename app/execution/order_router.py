@@ -90,7 +90,11 @@ class OrderRouter:
 
         limit_price = _fetch_ask_price(db, alert.contract_symbol)
         if limit_price is None:
-            log.debug("OrderRouter: no ask price found for %s, order will not submit to Alpaca", alert.contract_symbol)
+            log.info(
+                "OrderRouter: no ask price for %s yet — will retry next cycle",
+                alert.contract_symbol,
+            )
+            return None
 
         order = PaperOrder(
             alert_id=alert.id,

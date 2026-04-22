@@ -33,7 +33,7 @@ def _alert(
 def _db_mock(
     has_open_position: bool = False,
     has_active_order: bool = False,
-    ask_price: float | None = None,
+    ask_price: float | None = 1.50,
 ) -> MagicMock:
     db = MagicMock()
     db.add = MagicMock()
@@ -101,12 +101,17 @@ def test_route_skips_when_active_order_exists():
 
 
 def test_route_dry_run_sets_status_dry_run():
-    order = OrderRouter(dry_run=True).route(_alert(), _db_mock())
+    order = OrderRouter(dry_run=True).route(_alert(), _db_mock(ask_price=1.50))
     assert order.status == "dry_run"
 
 
+def test_route_returns_none_when_no_ask_price():
+    order = OrderRouter(broker_client=None, dry_run=False).route(_alert(), _db_mock(ask_price=None))
+    assert order is None
+
+
 def test_route_non_dry_run_no_broker_sets_status_pending():
-    order = OrderRouter(broker_client=None, dry_run=False).route(_alert(), _db_mock())
+    order = OrderRouter(broker_client=None, dry_run=False).route(_alert(), _db_mock(ask_price=1.50))
     assert order.status == "pending"
 
 
@@ -180,10 +185,6 @@ def test_route_sets_limit_price_from_quote():
     assert float(order.limit_price) == 2.35
 
 
-def test_route_limit_price_none_when_no_quote():
-    order = OrderRouter(dry_run=True).route(_alert(), _db_mock(ask_price=None))
-    assert order.limit_price is None
-
 
 def test_route_submits_to_broker_when_ask_price_available():
     broker = MagicMock()
@@ -204,4 +205,4 @@ def test_route_no_broker_call_when_no_ask_price():
         _alert(), _db_mock(ask_price=None)
     )
     broker.submit_limit_order.assert_not_called()
-    assert order.status == "pending"
+    assert order is None
