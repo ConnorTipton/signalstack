@@ -22,6 +22,7 @@ import logging
 from app.alerts.telegram import TelegramClient
 from app.alerts.worker import AlertWorker
 from app.core.config import settings
+from app.ingest_market.bar_aggregator import BarAggregatorWorker
 from app.ingest_market.tradier_worker import TradierWorker
 from app.ingest_news.edgar_worker import EdgarWorker
 from app.ingest_news.label_worker import LabelWorker
@@ -143,6 +144,7 @@ async def main() -> None:
             asyncio.create_task(marketaux.run(), name="marketaux"),
             asyncio.create_task(label.run(), name="label"),
             asyncio.create_task(TradierWorker(symbols=TICKERS).run(), name="tradier_quotes"),
+            asyncio.create_task(BarAggregatorWorker().run(), name="bar_aggregator"),
             asyncio.create_task(NewsDetectorWorker().run(), name="news_detector"),
             asyncio.create_task(PriceDetectorWorker().run(), name="price_detector"),
             asyncio.create_task(OptionsDetectorWorker().run(), name="options_detector"),
