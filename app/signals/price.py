@@ -32,7 +32,7 @@ from app.db.session import SessionLocal
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_INTERVAL = 30.0
+_DEFAULT_INTERVAL = 10.0
 _DEFAULT_BATCH = 50
 _LOOKBACK_BARS = 5  # bars used to establish the reference level
 _WINDOW_MINUTES = 30  # how far ahead to fetch bars after the news event

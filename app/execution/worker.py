@@ -35,7 +35,7 @@ from app.execution.position_manager import PositionManager
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_INTERVAL = 30.0
+_DEFAULT_INTERVAL = 10.0
 _DEFAULT_BATCH = 50
 
 

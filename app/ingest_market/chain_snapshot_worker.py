@@ -30,7 +30,7 @@ from app.providers.tradier.normalizer import normalize_option_chain
 log = logging.getLogger(__name__)
 
 _NORMALIZATION_VERSION = "1"
-_DEFAULT_INTERVAL = 300.0  # seconds between full snapshot cycles
+_DEFAULT_INTERVAL = 60.0  # seconds between full snapshot cycles
 _DEFAULT_MAX_EXPIRATIONS = 2  # next weekly + front monthly
 
 

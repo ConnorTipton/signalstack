@@ -75,19 +75,21 @@ class LabelWorker:
 
     async def _process_batch(self) -> None:
         articles = await asyncio.to_thread(self._fetch_unlabeled, self._batch_size)
-        for article in articles:
-            category = prefilter_article(article.title, article.body)
-            if category is None:
-                log.debug("Prefilter skip: article %d — %s", article.id, article.title[:60])
-                await asyncio.to_thread(self._persist_prefilter_skip, article.id)
-                continue
-            log.debug("Prefilter pass (%s): article %d", category, article.id)
-            try:
-                await self._label_one(article)
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                log.warning("LLM labeling failed for article %d: %s", article.id, exc)
+        await asyncio.gather(*[self._process_one(article) for article in articles])
+
+    async def _process_one(self, article: NewsArticle) -> None:
+        category = prefilter_article(article.title, article.body)
+        if category is None:
+            log.debug("Prefilter skip: article %d — %s", article.id, article.title[:60])
+            await asyncio.to_thread(self._persist_prefilter_skip, article.id)
+            return
+        log.debug("Prefilter pass (%s): article %d", category, article.id)
+        try:
+            await self._label_one(article)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log.warning("LLM labeling failed for article %d: %s", article.id, exc)
 
     async def _label_one(self, article: NewsArticle) -> None:
         prompt = build_prompt(article.title, article.body)

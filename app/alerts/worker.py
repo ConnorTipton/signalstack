@@ -27,7 +27,7 @@ from app.db.session import SessionLocal
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_INTERVAL = 30.0
+_DEFAULT_INTERVAL = 10.0
 _DEFAULT_BATCH = 50
 _MAX_RETRIES = 3
 

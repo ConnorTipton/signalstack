@@ -40,7 +40,7 @@ from app.db.session import SessionLocal
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_INTERVAL = 30.0
+_DEFAULT_INTERVAL = 10.0
 _DEFAULT_BATCH = 50
 _WINDOW_MINUTES = 30  # wait this long after news before scoring
 
