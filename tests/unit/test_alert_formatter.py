@@ -92,7 +92,9 @@ def test_liquidity_note_tight_spread():
 
 
 def test_liquidity_note_acceptable_spread():
-    note = _liquidity_note(_candidate(contract_spread_pct=0.15, contract_oi=None, contract_volume=None))
+    note = _liquidity_note(
+        _candidate(contract_spread_pct=0.15, contract_oi=None, contract_volume=None)
+    )
     assert "acceptable" in note
 
 
@@ -102,12 +104,16 @@ def test_liquidity_note_wide_spread():
 
 
 def test_liquidity_note_no_data():
-    note = _liquidity_note(_candidate(contract_spread_pct=None, contract_oi=None, contract_volume=None))
+    note = _liquidity_note(
+        _candidate(contract_spread_pct=None, contract_oi=None, contract_volume=None)
+    )
     assert note == "N/A"
 
 
 def test_liquidity_note_includes_volume():
-    note = _liquidity_note(_candidate(contract_spread_pct=None, contract_oi=None, contract_volume=75))
+    note = _liquidity_note(
+        _candidate(contract_spread_pct=None, contract_oi=None, contract_volume=75)
+    )
     assert "vol 75" in note
 
 
@@ -165,7 +171,9 @@ def test_build_reason_no_price_when_score_zero():
 
 
 def test_build_reason_includes_options_when_nonzero():
-    assert "options activity elevated" in AlertFormatter().build(_candidate(options_score=5.0)).reason
+    assert (
+        "options activity elevated" in AlertFormatter().build(_candidate(options_score=5.0)).reason
+    )
 
 
 def test_build_dry_run_default_true():
@@ -248,8 +256,15 @@ def test_render_includes_ticker_and_direction():
 def test_render_includes_all_template_fields():
     text = AlertFormatter.render(_alert())
     for label in [
-        "Reason:", "Contract:", "Entry:", "Invalidation:",
-        "Target 1:", "Target 2:", "Time stop:", "Liquidity:", "Data note:",
+        "Reason:",
+        "Contract:",
+        "Entry:",
+        "Invalidation:",
+        "Target 1:",
+        "Target 2:",
+        "Time stop:",
+        "Liquidity:",
+        "Data note:",
     ]:
         assert label in text, f"Missing: {label}"
 

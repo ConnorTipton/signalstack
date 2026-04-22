@@ -105,11 +105,7 @@ class ExecutionWorker:
     @staticmethod
     def _fetch_unrouted_alerts(db: Session) -> list[Alert]:
         """Return sent Alerts that have no PaperOrder yet."""
-        already_routed = (
-            db.query(PaperOrder)
-            .filter(PaperOrder.alert_id == Alert.id)
-            .exists()
-        )
+        already_routed = db.query(PaperOrder).filter(PaperOrder.alert_id == Alert.id).exists()
         return (
             db.query(Alert)
             .filter(

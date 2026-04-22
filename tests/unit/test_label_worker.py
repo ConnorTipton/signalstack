@@ -8,7 +8,9 @@ import pytest
 from app.ingest_news.label_worker import LabelWorker
 
 
-def _mock_client(response_text: str = '{"event_type": "earnings", "polarity": "positive", "importance": 0.8, "confidence": 0.9, "one_sentence_summary": "Good results."}') -> MagicMock:
+def _mock_client(
+    response_text: str = '{"event_type": "earnings", "polarity": "positive", "importance": 0.8, "confidence": 0.9, "one_sentence_summary": "Good results."}',
+) -> MagicMock:
     client = MagicMock()
     client._model = "llama3.1:8b"
     client.generate = AsyncMock(return_value=(response_text, 500))

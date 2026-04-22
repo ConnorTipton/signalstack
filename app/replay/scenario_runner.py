@@ -56,9 +56,7 @@ class ScenarioRunner:
         total_news = sum(1 for e in timeline if e.event_kind == "news_article")
         total_detected = sum(1 for e in timeline if e.event_kind == "detected_event")
         total_signals = sum(1 for e in timeline if e.event_kind == "signal_candidate")
-        total_alerts = sum(
-            1 for e in timeline if e.event_kind == "alert" and e.details.get("sent")
-        )
+        total_alerts = sum(1 for e in timeline if e.event_kind == "alert" and e.details.get("sent"))
         total_pos_open = sum(1 for e in timeline if e.event_kind == "position_open")
         close_events = [e for e in timeline if e.event_kind == "position_close"]
         total_pos_close = len(close_events)

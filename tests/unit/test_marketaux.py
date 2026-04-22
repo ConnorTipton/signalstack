@@ -53,7 +53,10 @@ _ARTICLE_NO_EQUITY = {
     ],
 }
 
-_API_RESPONSE = {"meta": {"found": 2, "returned": 2, "limit": 50, "page": 1}, "data": [_ARTICLE_RAW]}
+_API_RESPONSE = {
+    "meta": {"found": 2, "returned": 2, "limit": 50, "page": 1},
+    "data": [_ARTICLE_RAW],
+}
 
 
 # ---------------------------------------------------------------------------

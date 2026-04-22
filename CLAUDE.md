@@ -26,9 +26,14 @@ Detector logic consumes normalized events only, never provider-specific payloads
 - `app/signals/` — rule-based detectors that read normalized tables and emit `detected_events`.
 - `app/contracts/` — option chain filtering and contract selection.
 - `app/alerts/` — formatting and delivery. No scoring logic.
-- `app/execution/` — paper order routing + position management. Limit-only, one contract.
-- `app/replay/` — reads raw event tables and replays them through the same pipeline.
+- `app/execution/` — paper order routing + position management. Limit-only, one contract. Exit thresholds: invalidation=0.5×entry, target1=2×entry, target2=3×entry (informational).
+- `app/replay/` — reads raw event tables and replays them through the same pipeline. Read-only; no writes.
+- `app/api/v1/` — FastAPI review endpoints (alerts, health, positions, providers, performance, replay). Read-only. No frontend.
+- `app/llm/` — Anthropic client, prefilter, and prompt builder. LLM provider is Anthropic (cloud). No Ollama.
 - `tests/` — mirrors the `app/` layout where useful.
+
+## Runtime configuration
+`RUNTIME_MODE` env var accepts `build` (default) | `core` | `upgrade` — controls which workers are active at startup. Set in `.env` or the environment before running `python -m app.main_workers`.
 
 ## Style rules
 - Python 3.12. Ruff enforces lint + format.
@@ -60,6 +65,7 @@ Detector logic consumes normalized events only, never provider-specific payloads
 - Use X/Twitter sentiment as a primary trigger.
 - Introduce a new provider without implementing the existing provider protocol.
 - Upgrade to paid data tiers without explicit approval (budget cap ~$100/month, §24).
+- Add Ollama or any second LLM client. Anthropic (`app/llm/anthropic_client.py`) is the sole LLM provider.
 
 ## Session workflow
 Work one sub-milestone at a time per the execution plan in `/Users/connortipton/.claude/plans/`. After each sub-milestone: tests pass → ruff clean → commit → push → review → start a fresh Claude session for the next one.

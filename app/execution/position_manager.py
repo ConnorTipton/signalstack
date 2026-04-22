@@ -31,9 +31,9 @@ log = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 
 # Exit thresholds relative to entry price
-_INVALIDATION_MULT = 0.5   # close at 50% loss
-_TARGET1_MULT = 2.0        # close at 2× gain
-_TARGET2_MULT = 3.0        # informational 3× level
+_INVALIDATION_MULT = 0.5  # close at 50% loss
+_TARGET1_MULT = 2.0  # close at 2× gain
+_TARGET2_MULT = 3.0  # informational 3× level
 
 
 def _market_close_et(d: date) -> datetime:
@@ -49,7 +49,9 @@ def _parse_time_stop(time_stop: str | None, expiration_date: date) -> datetime:
     if time_stop and isinstance(time_stop, str):
         text = time_stop.lower()
         now_et = datetime.now(_ET)
-        if any(kw in text for kw in ("end of day", "eod", "close of market", "market close", "today")):
+        if any(
+            kw in text for kw in ("end of day", "eod", "close of market", "market close", "today")
+        ):
             return _market_close_et(now_et.date())
         if any(kw in text for kw in ("end of week", "end of the week", "friday", "this week")):
             days = (4 - now_et.weekday()) % 7 or 7
@@ -109,9 +111,7 @@ class PositionManager:
         if self._broker is None:
             return
 
-        submitted = (
-            db.query(PaperOrder).filter(PaperOrder.status == "submitted").all()
-        )
+        submitted = db.query(PaperOrder).filter(PaperOrder.status == "submitted").all()
         for order in submitted:
             if not order.alpaca_order_id:
                 continue
@@ -127,28 +127,18 @@ class PositionManager:
                 elif status in ("cancelled", "expired"):
                     order.status = status
                     order.cancelled_at = datetime.now(UTC)
-                    log.info(
-                        "PositionManager: order %s %s", order.alpaca_order_id, status
-                    )
+                    log.info("PositionManager: order %s %s", order.alpaca_order_id, status)
             except Exception as exc:
-                log.warning(
-                    "PositionManager: poll failed for order %s: %s", order.id, exc
-                )
+                log.warning("PositionManager: poll failed for order %s: %s", order.id, exc)
 
     # ------------------------------------------------------------------
     # Phase B: immediately open simulated positions for dry_run orders
     # ------------------------------------------------------------------
 
     def _open_dry_run_positions(self, db: Session) -> None:
-        dry_orders = (
-            db.query(PaperOrder).filter(PaperOrder.status == "dry_run").all()
-        )
+        dry_orders = db.query(PaperOrder).filter(PaperOrder.status == "dry_run").all()
         for order in dry_orders:
-            existing = (
-                db.query(PaperPosition)
-                .filter(PaperPosition.order_id == order.id)
-                .first()
-            )
+            existing = db.query(PaperPosition).filter(PaperPosition.order_id == order.id).first()
             if existing:
                 continue
             ask = _fetch_ask_price(db, order.contract_symbol)
@@ -164,9 +154,7 @@ class PositionManager:
 
     def _check_exits(self, db: Session) -> None:
         now = datetime.now(UTC)
-        open_positions = (
-            db.query(PaperPosition).filter(PaperPosition.status == "open").all()
-        )
+        open_positions = db.query(PaperPosition).filter(PaperPosition.status == "open").all()
         for pos in open_positions:
             if pos.time_stop_at and now >= pos.time_stop_at:
                 bid = _fetch_bid_price(db, pos.contract_symbol)
@@ -245,9 +233,7 @@ class PositionManager:
         )
         return position
 
-    def _submit_sell_order(
-        self, db: Session, position: PaperPosition, limit_price: float
-    ) -> None:
+    def _submit_sell_order(self, db: Session, position: PaperPosition, limit_price: float) -> None:
         """Submit a sell limit order to Alpaca for live (non-dry_run) positions."""
         if self._broker is None:
             return
@@ -269,9 +255,7 @@ class PositionManager:
                 limit_price,
             )
         except Exception as exc:
-            log.warning(
-                "PositionManager: sell order failed for %s: %s", position.ticker, exc
-            )
+            log.warning("PositionManager: sell order failed for %s: %s", position.ticker, exc)
 
     def _close_position(
         self,

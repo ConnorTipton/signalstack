@@ -140,9 +140,7 @@ class AlertWorker:
     ) -> list[SignalCandidate]:
         """Return promoted+contracted candidates with no Alert row yet."""
         already_alerted = (
-            db.query(Alert)
-            .filter(Alert.signal_candidate_id == SignalCandidate.id)
-            .exists()
+            db.query(Alert).filter(Alert.signal_candidate_id == SignalCandidate.id).exists()
         )
         return (
             db.query(SignalCandidate)
@@ -176,9 +174,5 @@ class AlertWorker:
     def _fetch_news_summary(db: Session, news_event_id: int | None) -> str | None:
         if news_event_id is None:
             return None
-        event = (
-            db.query(DetectedEvent)
-            .filter(DetectedEvent.id == news_event_id)
-            .first()
-        )
+        event = db.query(DetectedEvent).filter(DetectedEvent.id == news_event_id).first()
         return event.one_sentence_summary if event else None

@@ -61,4 +61,9 @@ addopts = "-ra --strict-markers"
 markers = [
     "integration: tests that require a running TimescaleDB instance",
 ]
+filterwarnings = [
+    "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning",
+    "ignore:'asyncio.get_event_loop_policy' is deprecated:DeprecationWarning",
+    "ignore:'asyncio.set_event_loop_policy' is deprecated:DeprecationWarning",
+]
 

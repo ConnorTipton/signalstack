@@ -86,11 +86,7 @@ class EventPlayer:
         opts_in_alert: set[int] = set()
         promoted_ids = {c.id for c in candidates if c.status == "promoted"}
         if promoted_ids:
-            alerts = (
-                db.query(Alert)
-                .filter(Alert.signal_candidate_id.in_(promoted_ids))
-                .all()
-            )
+            alerts = db.query(Alert).filter(Alert.signal_candidate_id.in_(promoted_ids)).all()
             alerted_ids = {a.signal_candidate_id for a in alerts if a.signal_candidate_id}
             for c in candidates:
                 if c.id in alerted_ids:
@@ -313,9 +309,7 @@ class EventPlayer:
             if article.source_tier == 1:
                 raw = (
                     db.query(RawOfficialNewsEvent)
-                    .filter(
-                        RawOfficialNewsEvent.provider_event_id == article.provider_event_id
-                    )
+                    .filter(RawOfficialNewsEvent.provider_event_id == article.provider_event_id)
                     .first()
                 )
                 if raw:
@@ -324,9 +318,7 @@ class EventPlayer:
             elif article.source_tier == 2:
                 raw = (
                     db.query(RawMarketauxEvent)
-                    .filter(
-                        RawMarketauxEvent.provider_event_id == article.provider_event_id
-                    )
+                    .filter(RawMarketauxEvent.provider_event_id == article.provider_event_id)
                     .first()
                 )
                 if raw:

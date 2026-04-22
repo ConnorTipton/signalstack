@@ -344,7 +344,11 @@ def test_rejection_reason_no_price_confirmation():
     result = SignalScorer().score(inp)
     if result.status == "rejected":
         # When score is D and price_event is None, reason should reflect missing price
-        assert result.rejection_reason in {"no price confirmation", "weak catalyst", "provider confidence too low"}
+        assert result.rejection_reason in {
+            "no price confirmation",
+            "weak catalyst",
+            "provider confidence too low",
+        }
 
 
 def test_rejection_reason_weak_catalyst():
@@ -374,8 +378,14 @@ def test_build_sets_all_event_ids():
         provider_confidence=0.90,
     )
     result = ScoringResult(
-        news_score=25.0, price_score=15.0, options_score=9.0, liquidity_score=5.0,
-        data_confidence_score=4.5, score=58.5, grade="D", status="rejected",
+        news_score=25.0,
+        price_score=15.0,
+        options_score=9.0,
+        liquidity_score=5.0,
+        data_confidence_score=4.5,
+        score=58.5,
+        grade="D",
+        status="rejected",
         rejection_reason="no price confirmation",
     )
     sc = ScoringWorker._build_signal_candidate(inp, result, _T0)
@@ -387,8 +397,14 @@ def test_build_sets_all_event_ids():
 def test_build_sets_none_when_events_absent():
     inp = _inp(price=None, options=None)
     result = ScoringResult(
-        news_score=20.0, price_score=0.0, options_score=0.0, liquidity_score=5.0,
-        data_confidence_score=4.5, score=29.5, grade="D", status="rejected",
+        news_score=20.0,
+        price_score=0.0,
+        options_score=0.0,
+        liquidity_score=5.0,
+        data_confidence_score=4.5,
+        score=29.5,
+        grade="D",
+        status="rejected",
         rejection_reason="no price confirmation",
     )
     sc = ScoringWorker._build_signal_candidate(inp, result, _T0)
@@ -399,8 +415,14 @@ def test_build_sets_none_when_events_absent():
 def test_build_sets_promoted_at_when_promoted():
     inp = _inp()
     result = ScoringResult(
-        news_score=25.0, price_score=20.0, options_score=9.0, liquidity_score=8.0,
-        data_confidence_score=4.5, score=66.5, grade="B", status="promoted",
+        news_score=25.0,
+        price_score=20.0,
+        options_score=9.0,
+        liquidity_score=8.0,
+        data_confidence_score=4.5,
+        score=66.5,
+        grade="B",
+        status="promoted",
         rejection_reason=None,
     )
     sc = ScoringWorker._build_signal_candidate(inp, result, _T0)
@@ -411,8 +433,14 @@ def test_build_sets_promoted_at_when_promoted():
 def test_build_sets_rejected_at_when_rejected():
     inp = _inp()
     result = ScoringResult(
-        news_score=5.0, price_score=0.0, options_score=0.0, liquidity_score=0.0,
-        data_confidence_score=0.0, score=5.0, grade="D", status="rejected",
+        news_score=5.0,
+        price_score=0.0,
+        options_score=0.0,
+        liquidity_score=0.0,
+        data_confidence_score=0.0,
+        score=5.0,
+        grade="D",
+        status="rejected",
         rejection_reason="weak catalyst",
     )
     sc = ScoringWorker._build_signal_candidate(inp, result, _T0)
@@ -423,8 +451,14 @@ def test_build_sets_rejected_at_when_rejected():
 def test_build_copies_scores_and_grade():
     inp = _inp(provider_confidence=0.88)
     result = ScoringResult(
-        news_score=26.78, price_score=16.80, options_score=9.0, liquidity_score=8.0,
-        data_confidence_score=4.40, score=65.0, grade="C", status="watch",
+        news_score=26.78,
+        price_score=16.80,
+        options_score=9.0,
+        liquidity_score=8.0,
+        data_confidence_score=4.40,
+        score=65.0,
+        grade="C",
+        status="watch",
         rejection_reason=None,
     )
     sc = ScoringWorker._build_signal_candidate(inp, result, _T0)
@@ -474,9 +508,7 @@ def test_run_once_scores_with_provider_confidence():
     worker = ScoringWorker()
     worker._get_provider_confidence = lambda db: 0.10  # very weak
     worker._fetch_unscored_news_events = lambda db, cutoff, **kw: [_news_ev()]
-    worker._fetch_price_event = lambda db, naid, sid: _price_ev(
-        confidence=0.95, importance=0.95
-    )
+    worker._fetch_price_event = lambda db, naid, sid: _price_ev(confidence=0.95, importance=0.95)
     worker._fetch_options_event = lambda db, naid, sid: _options_ev(
         confidence=0.95, importance=0.95, mode="full"
     )

@@ -31,10 +31,10 @@ class MarketauxArticle:
     title: str
     url: str
     published_at: datetime
-    source: str          # originating publication (e.g. "Reuters")
+    source: str  # originating publication (e.g. "Reuters")
     summary: str | None
-    tickers: list[str]   # equity symbols from entities, sorted
-    content_hash: str    # sha256 of normalized title — used for same-title dedup
+    tickers: list[str]  # equity symbols from entities, sorted
+    content_hash: str  # sha256 of normalized title — used for same-title dedup
     raw: dict = field(repr=False)
 
 

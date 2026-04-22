@@ -429,8 +429,19 @@ def test_runner_win_rate_none_when_no_closed_positions():
 
 def test_runner_win_rate_calculation():
     timeline = [
-        _make_event("position_close", details={"pnl": 50.0, "pnl_pct": 0.20, "exit_price": 3.0, "exit_reason": "time_stop"}),
-        _make_event("position_close", details={"pnl": -25.0, "pnl_pct": -0.10, "exit_price": 2.25, "exit_reason": "time_stop"}),
+        _make_event(
+            "position_close",
+            details={"pnl": 50.0, "pnl_pct": 0.20, "exit_price": 3.0, "exit_reason": "time_stop"},
+        ),
+        _make_event(
+            "position_close",
+            details={
+                "pnl": -25.0,
+                "pnl_pct": -0.10,
+                "exit_price": 2.25,
+                "exit_reason": "time_stop",
+            },
+        ),
     ]
     runner = ScenarioRunner(player=_mock_player(timeline))
     report = runner.run(MagicMock(), _START, _END)
@@ -439,8 +450,14 @@ def test_runner_win_rate_calculation():
 
 def test_runner_realized_pnl():
     timeline = [
-        _make_event("position_close", details={"pnl": 50.0, "exit_price": 3.0, "pnl_pct": 0.20, "exit_reason": "time_stop"}),
-        _make_event("position_close", details={"pnl": 30.0, "exit_price": 3.0, "pnl_pct": 0.12, "exit_reason": "time_stop"}),
+        _make_event(
+            "position_close",
+            details={"pnl": 50.0, "exit_price": 3.0, "pnl_pct": 0.20, "exit_reason": "time_stop"},
+        ),
+        _make_event(
+            "position_close",
+            details={"pnl": 30.0, "exit_price": 3.0, "pnl_pct": 0.12, "exit_reason": "time_stop"},
+        ),
     ]
     runner = ScenarioRunner(player=_mock_player(timeline))
     report = runner.run(MagicMock(), _START, _END)

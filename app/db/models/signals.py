@@ -66,7 +66,9 @@ class SignalCandidate(Base):
     contract_volume: Mapped[int | None] = mapped_column(Integer, nullable=True)
     contract_selection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     contract_rejection_json: Mapped[list | None] = mapped_column(JSONB, nullable=True)
-    contract_selected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    contract_selected_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

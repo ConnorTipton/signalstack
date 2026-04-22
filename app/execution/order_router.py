@@ -83,9 +83,7 @@ class OrderRouter:
             return None
 
         if _has_open_position(db, alert.ticker) or _has_active_order(db, alert.ticker):
-            log.debug(
-                "OrderRouter: position/order already active for %s, skipping", alert.ticker
-            )
+            log.debug("OrderRouter: position/order already active for %s, skipping", alert.ticker)
             return None
 
         limit_price = _fetch_ask_price(db, alert.contract_symbol)
@@ -123,9 +121,7 @@ class OrderRouter:
                 order.status = "submitted"
                 order.submitted_at = datetime.now(UTC)
             except Exception as exc:
-                log.warning(
-                    "OrderRouter: Alpaca submission failed for %s: %s", alert.ticker, exc
-                )
+                log.warning("OrderRouter: Alpaca submission failed for %s: %s", alert.ticker, exc)
                 order.status = "submit_failed"
                 order.submitted_at = datetime.now(UTC)
 

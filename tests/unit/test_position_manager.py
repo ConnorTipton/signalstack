@@ -344,7 +344,7 @@ def test_open_position_sets_target_prices():
 
     positions = [o for o in captured if isinstance(o, PaperPosition)]
     pos = positions[0]
-    assert float(pos.target1_price) == pytest.approx(4.0)   # 2× entry
+    assert float(pos.target1_price) == pytest.approx(4.0)  # 2× entry
     assert float(pos.invalidation_price) == pytest.approx(1.0)  # 0.5× entry
 
 

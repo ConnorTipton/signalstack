@@ -7,6 +7,7 @@ The LLM client is not exercised here.
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import select
 
 from app.db.models.news import LlmNewsLabel, NewsArticle
 from app.ingest_news.label_worker import LabelWorker
@@ -84,7 +85,6 @@ def test_write_label_handles_empty_parsed_dict(db_session):
 
 
 def test_fetch_unlabeled_returns_unlabeled_article(db_session):
-
     # Insert article directly — uses the test DB via monkeypatching SessionLocal
     # Instead, test the query logic by calling _fetch_unlabeled with our session
     # We can't easily test this without touching SessionLocal.
@@ -93,7 +93,7 @@ def test_fetch_unlabeled_returns_unlabeled_article(db_session):
     db_session.flush()
 
     # Before labeling: article is "unlabeled"
-    labeled_subq = db_session.query(LlmNewsLabel.article_id).subquery()
+    labeled_subq = select(LlmNewsLabel.article_id).scalar_subquery()
     unlabeled = (
         db_session.query(NewsArticle)
         .filter(

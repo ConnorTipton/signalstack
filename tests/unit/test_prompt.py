@@ -110,15 +110,21 @@ def test_parse_response_returns_empty_dict_for_empty_string():
 
 
 def test_parse_response_clamps_importance_above_1():
-    result = parse_response('{"event_type": "earnings", "polarity": "positive", "importance": 1.5, "confidence": 0.9, "one_sentence_summary": "x"}')
+    result = parse_response(
+        '{"event_type": "earnings", "polarity": "positive", "importance": 1.5, "confidence": 0.9, "one_sentence_summary": "x"}'
+    )
     assert result["importance"] == 1.0
 
 
 def test_parse_response_clamps_confidence_below_0():
-    result = parse_response('{"event_type": "earnings", "polarity": "positive", "importance": 0.5, "confidence": -0.1, "one_sentence_summary": "x"}')
+    result = parse_response(
+        '{"event_type": "earnings", "polarity": "positive", "importance": 0.5, "confidence": -0.1, "one_sentence_summary": "x"}'
+    )
     assert result["confidence"] == 0.0
 
 
 def test_parse_response_handles_null_event_type():
-    result = parse_response('{"event_type": null, "polarity": "neutral", "importance": 0.1, "confidence": 0.5, "one_sentence_summary": "No clear event."}')
+    result = parse_response(
+        '{"event_type": null, "polarity": "neutral", "importance": 0.1, "confidence": 0.5, "one_sentence_summary": "No clear event."}'
+    )
     assert result["event_type"] is None

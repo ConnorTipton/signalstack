@@ -99,9 +99,7 @@ class MarketauxWorker:
         # Skip if a raw row with the same content_hash already exists — two
         # articles in the same API response can share an identical title.
         raw_exists = article.content_hash and (
-            db.query(RawMarketauxEvent)
-            .filter_by(content_hash=article.content_hash)
-            .first()
+            db.query(RawMarketauxEvent).filter_by(content_hash=article.content_hash).first()
             is not None
         )
         if not raw_exists:

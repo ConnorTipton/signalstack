@@ -40,13 +40,13 @@ _DEFAULT_INTERVAL = 30.0
 _DEFAULT_BATCH = 50
 
 # Spread quality gate
-_MAX_SPREAD_PCT = 0.30      # reject when (ask - bid) / mid > 30%
+_MAX_SPREAD_PCT = 0.30  # reject when (ask - bid) / mid > 30%
 
 # Strike selection band (± this many strikes from ATM)
 _ATM_BAND_STRIKES = 2
 
 # Liquidity score calibration (mirrors _LIQUIDITY_MAX = 10.0 in scoring.py)
-_OI_FULL_SCORE = 500        # OI needed for full oi_factor contribution
+_OI_FULL_SCORE = 500  # OI needed for full oi_factor contribution
 _LIQUIDITY_MAX = 10.0
 
 
@@ -60,7 +60,7 @@ class OptionContractRow:
     contract_symbol: str
     expiration_date: date
     strike: float
-    option_type: str          # "call" | "put"
+    option_type: str  # "call" | "put"
     bid: float | None
     ask: float | None
     open_interest: int | None
@@ -72,15 +72,15 @@ class ContractSelection:
     contract_symbol: str
     expiration_date: date
     strike: float
-    option_type: str          # "call" | "put"
+    option_type: str  # "call" | "put"
     bid: float | None
     ask: float | None
     spread_pct: float | None
     open_interest: int | None
     volume: int | None
-    liquidity_score: float    # 0.0–10.0 — replaces _DEFAULT_LIQUIDITY placeholder
+    liquidity_score: float  # 0.0–10.0 — replaces _DEFAULT_LIQUIDITY placeholder
     selection_reason: str
-    rejected: list[dict]      # [{"contract": str, "reason": str}]
+    rejected: list[dict]  # [{"contract": str, "reason": str}]
 
 
 # ---------------------------------------------------------------------------
@@ -403,9 +403,5 @@ class ContractSelectorWorker:
         """Return the polarity from the linked news DetectedEvent (default 'positive')."""
         if candidate.news_event_id is None:
             return "positive"
-        event = (
-            db.query(DetectedEvent)
-            .filter(DetectedEvent.id == candidate.news_event_id)
-            .first()
-        )
+        event = db.query(DetectedEvent).filter(DetectedEvent.id == candidate.news_event_id).first()
         return (event.polarity or "positive") if event else "positive"

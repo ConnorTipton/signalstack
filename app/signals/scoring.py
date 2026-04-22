@@ -95,8 +95,8 @@ class ScoringResult:
     liquidity_score: float
     data_confidence_score: float
     score: float
-    grade: str           # "A" | "B" | "C" | "D"
-    status: str          # "promoted" | "watch" | "rejected"
+    grade: str  # "A" | "B" | "C" | "D"
+    status: str  # "promoted" | "watch" | "rejected"
     rejection_reason: str | None
 
 
@@ -155,7 +155,12 @@ class SignalScorer:
             return 0.0
         mode = (event.metadata_json or {}).get("mode", "proxy")
         mode_factor = 1.0 if mode == "full" else 0.75
-        return float(event.confidence or 0.0) * float(event.importance or 0.0) * mode_factor * _OPTIONS_MAX
+        return (
+            float(event.confidence or 0.0)
+            * float(event.importance or 0.0)
+            * mode_factor
+            * _OPTIONS_MAX
+        )
 
     @staticmethod
     def _grade_from_score(score: float) -> str:
@@ -178,9 +183,7 @@ class SignalScorer:
             mode = (inp.options_event.metadata_json or {}).get("mode", "proxy")
             if mode == "proxy":
                 news_tier1 = (inp.news_event.source_tier or 2) == 1
-                price_conf = (
-                    float(inp.price_event.confidence or 0.0) if inp.price_event else 0.0
-                )
+                price_conf = float(inp.price_event.confidence or 0.0) if inp.price_event else 0.0
                 if (
                     not (news_tier1 and price_conf >= _STRONG_PRICE_CONF)
                     and _GRADE_RANK[grade] > _GRADE_RANK[_PROXY_CAP_MAX]
@@ -301,9 +304,7 @@ class ScoringWorker:
         now = datetime.now(UTC)
         cutoff = now - timedelta(minutes=self._window_minutes)
         provider_confidence = self._get_provider_confidence(db)
-        news_events = self._fetch_unscored_news_events(
-            db, cutoff, batch_size=self._batch_size
-        )
+        news_events = self._fetch_unscored_news_events(db, cutoff, batch_size=self._batch_size)
         count = 0
         for news_event in news_events:
             price_event = self._fetch_price_event(

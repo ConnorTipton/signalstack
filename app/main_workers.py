@@ -85,9 +85,7 @@ def _ensure_db_ready() -> None:
     with SessionLocal() as db:
         tables = inspect(db.get_bind()).get_table_names()
         if "news_articles" not in tables:
-            raise RuntimeError(
-                "Database tables are missing. Run: uv run alembic upgrade head"
-            )
+            raise RuntimeError("Database tables are missing. Run: uv run alembic upgrade head")
         log.info("Database schema verified")
 
         if db.query(Symbol).count() == 0:
@@ -196,7 +194,9 @@ async def main() -> None:
                     name="execution",
                 )
             )
-            log.info("ExecutionWorker: Alpaca paper trading enabled (paper=%s)", settings.alpaca_paper)
+            log.info(
+                "ExecutionWorker: Alpaca paper trading enabled (paper=%s)", settings.alpaca_paper
+            )
         else:
             log.info("ExecutionWorker: no ALPACA credentials — skipped")
 

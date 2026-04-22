@@ -10,15 +10,32 @@ See `signalstack_v1_budget_blueprint_v1_1.txt` for the full spec and `CLAUDE.md`
 # install deps
 uv sync --extra dev
 
+# copy env template and fill in values
+cp .env.example .env
+
 # start Postgres (TimescaleDB)
 docker compose up -d postgres
 
-# run the API
+# apply migrations
+uv run alembic upgrade head
+
+# run the review API
 uv run uvicorn app.main:app --reload
 
 # in another terminal:
 curl http://localhost:8000/health
 ```
+
+## Running workers
+
+The pipeline (ingestion → detection → alerts → paper execution) runs as async workers, not via the API:
+
+```bash
+uv run python -m app.main_workers
+```
+
+Workers start unconditionally: Edgar, RSS, Marketaux, LabelWorker, TradierWorker, BarAggregator, NewsDetector, PriceDetector, OptionsDetector, AlertWorker.  
+Conditional on credentials: ChainSnapshotWorker (needs `TRADIER_API_TOKEN`), ExecutionWorker (needs `ALPACA_API_KEY`).
 
 ## Development
 
@@ -28,4 +45,4 @@ uv run ruff check .     # lint
 uv run ruff format .    # format
 ```
 
-Copy `.env.example` to `.env` and fill in values as you progress through phases.
+See `.env.example` for the full list of env vars and which phase each belongs to.

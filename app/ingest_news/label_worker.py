@@ -18,6 +18,7 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models.news import LlmNewsLabel, NewsArticle
@@ -28,8 +29,8 @@ from app.llm.prompt import build_prompt, parse_response
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_INTERVAL = 60.0   # seconds between labeling cycles
-_DEFAULT_BATCH = 10        # articles per cycle
+_DEFAULT_INTERVAL = 60.0  # seconds between labeling cycles
+_DEFAULT_BATCH = 10  # articles per cycle
 
 
 class LabelWorker:
@@ -151,7 +152,7 @@ class LabelWorker:
     @staticmethod
     def _fetch_unlabeled(batch_size: int) -> list[NewsArticle]:
         with SessionLocal() as db:
-            labeled_subq = db.query(LlmNewsLabel.article_id).scalar_subquery()
+            labeled_subq = select(LlmNewsLabel.article_id).scalar_subquery()
             return (
                 db.query(NewsArticle)
                 .filter(

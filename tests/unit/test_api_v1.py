@@ -200,7 +200,9 @@ def test_performance_returns_200():
 
 
 def test_performance_returns_list():
-    app.dependency_overrides[get_db] = lambda: _db([_perf_row(), _perf_row(metric_date=date(2026, 4, 20))])
+    app.dependency_overrides[get_db] = lambda: _db(
+        [_perf_row(), _perf_row(metric_date=date(2026, 4, 20))]
+    )
     data = client.get("/api/v1/performance").json()
     assert isinstance(data, list)
     assert len(data) == 2
@@ -254,7 +256,18 @@ def test_positions_default_status_open():
 
 
 def test_positions_status_all_skips_status_filter():
-    db = _db([_position_row(status="closed", exit_price=3.0, exit_reason="time_stop", closed_at=_NOW, pnl=50.0, pnl_pct=0.20)])
+    db = _db(
+        [
+            _position_row(
+                status="closed",
+                exit_price=3.0,
+                exit_reason="time_stop",
+                closed_at=_NOW,
+                pnl=50.0,
+                pnl_pct=0.20,
+            )
+        ]
+    )
     app.dependency_overrides[get_db] = lambda: db
     resp = client.get("/api/v1/positions?status=closed")
     assert resp.status_code == 200
@@ -279,10 +292,12 @@ def test_provider_health_returns_200():
 
 
 def test_provider_health_returns_list():
-    app.dependency_overrides[get_db] = lambda: _db([
-        _provider_row(provider_name="tradier"),
-        _provider_row(provider_name="alpaca", is_healthy=False, consecutive_failures=3),
-    ])
+    app.dependency_overrides[get_db] = lambda: _db(
+        [
+            _provider_row(provider_name="tradier"),
+            _provider_row(provider_name="alpaca", is_healthy=False, consecutive_failures=3),
+        ]
+    )
     data = client.get("/api/v1/providers/health").json()
     assert isinstance(data, list)
     assert len(data) == 2

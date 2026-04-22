@@ -238,8 +238,8 @@ def test_select_records_rejected_wide_spread():
 
 def test_select_prefers_itm_call_over_atm():
     # For calls: ITM = strike < underlying (100).  ATM strike == underlying is not ITM.
-    atm = _contract(100.0, oi=500, symbol="ATM")   # strike == underlying → not ITM
-    itm = _contract(98.0, oi=400, symbol="ITM")    # strike < underlying → ITM wins despite lower OI
+    atm = _contract(100.0, oi=500, symbol="ATM")  # strike == underlying → not ITM
+    itm = _contract(98.0, oi=400, symbol="ITM")  # strike < underlying → ITM wins despite lower OI
     result = ContractSelector().select([atm, itm], _UNDERLYING, "positive", _TODAY)
     assert result is not None
     assert result.contract_symbol == "ITM"
@@ -247,8 +247,8 @@ def test_select_prefers_itm_call_over_atm():
 
 def test_select_prefers_itm_put_over_atm():
     # For puts: ITM = strike > underlying (100).  ATM strike == underlying is not ITM.
-    atm = _contract(100.0, option_type="put", oi=500, symbol="ATM")   # not ITM
-    itm = _contract(102.0, option_type="put", oi=400, symbol="ITM")   # ITM wins despite lower OI
+    atm = _contract(100.0, option_type="put", oi=500, symbol="ATM")  # not ITM
+    itm = _contract(102.0, option_type="put", oi=400, symbol="ITM")  # ITM wins despite lower OI
     result = ContractSelector().select([atm, itm], _UNDERLYING, "negative", _TODAY)
     assert result is not None
     assert result.contract_symbol == "ITM"
@@ -431,9 +431,7 @@ def test_run_once_updates_candidate_when_selection_found():
     worker = ContractSelectorWorker()
     worker._fetch_uncontracted_candidates = lambda db, **kw: [candidate]
     worker._fetch_underlying_price = lambda db, symbol_id: 100.0
-    worker._fetch_option_quotes = lambda db, symbol_id: [
-        _contract(100.0, oi=500, volume=100)
-    ]
+    worker._fetch_option_quotes = lambda db, symbol_id: [_contract(100.0, oi=500, volume=100)]
     worker._get_polarity = lambda db, candidate: "positive"
 
     db = _db_mock()

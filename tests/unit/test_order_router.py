@@ -153,16 +153,13 @@ def test_route_sets_alert_id():
 
 
 def test_route_sets_expiration_date():
-    order = OrderRouter(dry_run=True).route(
-        _alert(expiration_date=date(2025, 5, 1)), _db_mock()
-    )
+    order = OrderRouter(dry_run=True).route(_alert(expiration_date=date(2025, 5, 1)), _db_mock())
     assert order.expiration_date == date(2025, 5, 1)
 
 
 # ---------------------------------------------------------------------------
 # Broker submission (live paper)
 # ---------------------------------------------------------------------------
-
 
 
 def test_route_sets_submit_failed_on_broker_error():
@@ -183,7 +180,6 @@ def test_route_sets_submit_failed_on_broker_error():
 def test_route_sets_limit_price_from_quote():
     order = OrderRouter(dry_run=True).route(_alert(), _db_mock(ask_price=2.35))
     assert float(order.limit_price) == 2.35
-
 
 
 def test_route_submits_to_broker_when_ask_price_available():

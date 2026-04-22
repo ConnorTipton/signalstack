@@ -78,9 +78,7 @@ class AlertFormatter:
             contract_symbol=candidate.contract_symbol,
             expiration_date=candidate.contract_expiration,
             strike=(
-                float(candidate.contract_strike)
-                if candidate.contract_strike is not None
-                else None
+                float(candidate.contract_strike) if candidate.contract_strike is not None else None
             ),
             option_type=candidate.contract_type,
             reason="; ".join(reason_parts),

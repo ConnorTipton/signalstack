@@ -157,21 +157,36 @@ def test_extract_tickers_wire_feed_matches_ticker_in_title():
 
 
 def test_extract_tickers_wire_feed_matches_ticker_in_summary():
-    entry_data = {"id": "x", "link": "https://gnw.com/x", "title": "Quarterly Results", "summary": "NVDA beats estimates"}
+    entry_data = {
+        "id": "x",
+        "link": "https://gnw.com/x",
+        "title": "Quarterly Results",
+        "summary": "NVDA beats estimates",
+    }
     entry = _parse_entries([entry_data], "globenewswire")[0]
     result = extract_tickers(entry, _WIRE_CONFIG, _MONITORED)
     assert "NVDA" in result
 
 
 def test_extract_tickers_wire_feed_no_match_returns_empty():
-    entry_data = {"id": "y", "link": "https://gnw.com/y", "title": "Weather update", "summary": "Rain expected."}
+    entry_data = {
+        "id": "y",
+        "link": "https://gnw.com/y",
+        "title": "Weather update",
+        "summary": "Rain expected.",
+    }
     entry = _parse_entries([entry_data], "globenewswire")[0]
     result = extract_tickers(entry, _WIRE_CONFIG, _MONITORED)
     assert result == []
 
 
 def test_extract_tickers_wire_feed_multiple_matches_sorted():
-    entry_data = {"id": "z", "link": "https://gnw.com/z", "title": "TSLA and MSFT announce partnership", "summary": ""}
+    entry_data = {
+        "id": "z",
+        "link": "https://gnw.com/z",
+        "title": "TSLA and MSFT announce partnership",
+        "summary": "",
+    }
     entry = _parse_entries([entry_data], "globenewswire")[0]
     result = extract_tickers(entry, _WIRE_CONFIG, _MONITORED)
     assert result == sorted(result)
@@ -182,7 +197,12 @@ def test_extract_tickers_wire_feed_multiple_matches_sorted():
 def test_extract_tickers_wire_feed_avoids_partial_match():
     # "MA" should not match inside "MAXIMUM"
     ma_config = FeedConfig(url="https://gnw.com", source_name="gnw", ticker=None)
-    entry_data = {"id": "w", "link": "https://gnw.com/w", "title": "Maximum gain expected", "summary": ""}
+    entry_data = {
+        "id": "w",
+        "link": "https://gnw.com/w",
+        "title": "Maximum gain expected",
+        "summary": "",
+    }
     entry = _parse_entries([entry_data], "gnw")[0]
     result = extract_tickers(entry, ma_config, {"MA"})
     assert result == []
@@ -221,7 +241,9 @@ async def test_rss_worker_feed_failure_does_not_abort_others():
     attempts: list[str] = []
     feed_a = FeedConfig(url="https://a.com/feed", source_name="a", ticker="AAPL")
     feed_b = FeedConfig(url="https://b.com/feed", source_name="b", ticker="MSFT")
-    worker = RssWorker([feed_a, feed_b], monitored_tickers=set(), poller=poller, interval_seconds=9999)
+    worker = RssWorker(
+        [feed_a, feed_b], monitored_tickers=set(), poller=poller, interval_seconds=9999
+    )
 
     original = worker._poll_feed
 
