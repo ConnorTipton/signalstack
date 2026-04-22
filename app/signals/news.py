@@ -98,7 +98,7 @@ class NewsDetector:
         detected_subq = (
             db.query(DetectedEvent.llm_label_id)
             .filter(DetectedEvent.llm_label_id.isnot(None))
-            .subquery()
+            .scalar_subquery()
         )
         return (
             db.query(LlmNewsLabel)

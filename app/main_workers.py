@@ -19,6 +19,8 @@ import asyncio
 import contextlib
 import logging
 
+from app.alerts.telegram import TelegramClient
+from app.alerts.worker import AlertWorker
 from app.core.config import settings
 from app.ingest_market.tradier_worker import TradierWorker
 from app.ingest_news.edgar_worker import EdgarWorker
@@ -27,6 +29,9 @@ from app.ingest_news.marketaux_worker import MarketauxWorker
 from app.ingest_news.rss_worker import RssWorker
 from app.providers.marketaux.client import MarketauxClient
 from app.providers.official_feeds.rss import FeedConfig
+from app.signals.news import NewsDetectorWorker
+from app.signals.options import OptionsDetectorWorker
+from app.signals.price import PriceDetectorWorker
 
 log = logging.getLogger(__name__)
 
@@ -123,12 +128,31 @@ async def main() -> None:
     async with MarketauxClient(api_token=settings.marketaux_api_token or "") as mktaux_client:
         marketaux = MarketauxWorker(symbols=TICKERS, client=mktaux_client)
 
+        telegram = None
+        if settings.telegram_bot_token and settings.telegram_chat_id:
+            telegram = TelegramClient(
+                bot_token=settings.telegram_bot_token,
+                chat_id=settings.telegram_chat_id,
+            )
+        else:
+            log.warning("Telegram not configured — alerts will be persisted but not sent")
+
         tasks: list[asyncio.Task] = [
             asyncio.create_task(edgar.run(), name="edgar"),
             asyncio.create_task(rss.run(), name="rss"),
             asyncio.create_task(marketaux.run(), name="marketaux"),
             asyncio.create_task(label.run(), name="label"),
             asyncio.create_task(TradierWorker(symbols=TICKERS).run(), name="tradier_quotes"),
+            asyncio.create_task(NewsDetectorWorker().run(), name="news_detector"),
+            asyncio.create_task(PriceDetectorWorker().run(), name="price_detector"),
+            asyncio.create_task(OptionsDetectorWorker().run(), name="options_detector"),
+            asyncio.create_task(
+                AlertWorker(
+                    telegram_client=telegram,
+                    dry_run=settings.alerts_dry_run,
+                ).run(),
+                name="alert_worker",
+            ),
         ]
 
         if settings.tradier_api_token:
