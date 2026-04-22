@@ -156,8 +156,14 @@ def test_run_once_sends_when_telegram_configured():
 
 
 def test_run_once_skips_send_when_telegram_is_none():
-    # Should not raise even with no telegram client
-    _worker(candidates=[_candidate()], telegram_client=None).run_once(_db_mock())
+    captured: list[Alert] = []
+    db = _db_mock()
+    db.add.side_effect = lambda obj: captured.append(obj)
+
+    _worker(candidates=[_candidate()], telegram_client=None).run_once(db)
+
+    assert captured[0].sent_at is not None
+    assert captured[0].send_attempts == 0
 
 
 def test_run_once_sets_sent_at_on_success():

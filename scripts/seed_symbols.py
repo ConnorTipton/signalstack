@@ -1,35 +1,24 @@
-"""Seed the symbols table with the V1 universe from blueprint §6."""
+"""Seed the symbols table with the configured V1 universe."""
 
 import sys
 
 sys.path.insert(0, ".")
 
+from app.core.config import settings
+from app.core.watchlist import DEFAULT_SYMBOL_NAMES, parse_tickers
 from app.db.models.symbols import Symbol
 from app.db.session import SessionLocal
 
-SYMBOLS: list[tuple[str, str]] = [
-    ("SPY", "SPDR S&P 500 ETF Trust"),
-    ("QQQ", "Invesco QQQ Trust"),
-    ("IWM", "iShares Russell 2000 ETF"),
-    ("AAPL", "Apple Inc."),
-    ("MSFT", "Microsoft Corporation"),
-    ("NVDA", "NVIDIA Corporation"),
-    ("AMZN", "Amazon.com Inc."),
-    ("META", "Meta Platforms Inc."),
-    ("TSLA", "Tesla Inc."),
-    ("AMD", "Advanced Micro Devices Inc."),
-    ("NFLX", "Netflix Inc."),
-    ("GOOGL", "Alphabet Inc."),
-    ("AVGO", "Broadcom Inc."),
-    ("PLTR", "Palantir Technologies Inc."),
-]
-
 
 def main() -> None:
+    symbols = [
+        (ticker, DEFAULT_SYMBOL_NAMES.get(ticker, ticker))
+        for ticker in parse_tickers(settings.monitored_tickers)
+    ]
     with SessionLocal() as session:
         existing = {s.ticker for s in session.query(Symbol).all()}
         new_symbols = [
-            Symbol(ticker=ticker, name=name) for ticker, name in SYMBOLS if ticker not in existing
+            Symbol(ticker=ticker, name=name) for ticker, name in symbols if ticker not in existing
         ]
         if new_symbols:
             session.add_all(new_symbols)

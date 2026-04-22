@@ -79,6 +79,19 @@ def test_write_label_handles_empty_parsed_dict(db_session):
     assert label.response_text == "garbage response"
 
 
+def test_write_prefilter_skip_marks_article_processed(db_session):
+    article = _add_article(db_session)
+    LabelWorker._write_prefilter_skip(db_session, article.id)
+    db_session.flush()
+
+    label = db_session.query(LlmNewsLabel).one()
+    assert label.article_id == article.id
+    assert label.model_name == "prefilter"
+    assert label.response_text == "prefilter_skip"
+    assert label.event_type is None
+    assert label.processing_ms == 0
+
+
 # ---------------------------------------------------------------------------
 # _fetch_unlabeled — query logic
 # ---------------------------------------------------------------------------

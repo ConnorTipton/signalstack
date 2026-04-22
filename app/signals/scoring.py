@@ -285,8 +285,7 @@ class ScoringWorker:
         while True:
             t0 = datetime.now(UTC)
             try:
-                with SessionLocal() as db:
-                    count = self.run_once(db)
+                count = await asyncio.to_thread(self._run_once_in_session)
                 if count:
                     log.info("ScoringWorker: wrote %d signal_candidate(s)", count)
             except asyncio.CancelledError:
@@ -295,6 +294,10 @@ class ScoringWorker:
                 log.warning("ScoringWorker cycle error: %s", exc)
             elapsed = (datetime.now(UTC) - t0).total_seconds()
             await asyncio.sleep(max(0.0, self._interval - elapsed))
+
+    def _run_once_in_session(self) -> int:
+        with SessionLocal() as db:
+            return self.run_once(db)
 
     def run_once(self, db: Session) -> int:
         """Score all eligible news events and write signal_candidates.

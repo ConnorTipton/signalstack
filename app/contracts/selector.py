@@ -30,6 +30,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import func as sqla_func
 from sqlalchemy.orm import Session
 
+from app.core.market_data_freshness import market_data_cutoff
 from app.db.models.market import OptionQuote, UnderlyingBar1m
 from app.db.models.signals import DetectedEvent, SignalCandidate
 from app.db.session import SessionLocal
@@ -271,8 +272,7 @@ class ContractSelectorWorker:
         while True:
             t0 = datetime.now(UTC)
             try:
-                with SessionLocal() as db:
-                    count = self.run_once(db)
+                count = await asyncio.to_thread(self._run_once_in_session)
                 if count:
                     log.info("ContractSelector: updated %d signal_candidate(s)", count)
             except asyncio.CancelledError:
@@ -281,6 +281,10 @@ class ContractSelectorWorker:
                 log.warning("ContractSelector cycle error: %s", exc)
             elapsed = (datetime.now(UTC) - t0).total_seconds()
             await asyncio.sleep(max(0.0, self._interval - elapsed))
+
+    def _run_once_in_session(self) -> int:
+        with SessionLocal() as db:
+            return self.run_once(db)
 
     def run_once(self, db: Session) -> int:
         """Process promoted candidates that have no contract assigned yet.
@@ -360,7 +364,10 @@ class ContractSelectorWorker:
     def _fetch_underlying_price(db: Session, symbol_id: int) -> float | None:
         row = (
             db.query(UnderlyingBar1m)
-            .filter(UnderlyingBar1m.symbol_id == symbol_id)
+            .filter(
+                UnderlyingBar1m.symbol_id == symbol_id,
+                UnderlyingBar1m.bar_time >= market_data_cutoff(),
+            )
             .order_by(UnderlyingBar1m.bar_time.desc())
             .first()
         )
@@ -371,7 +378,10 @@ class ContractSelectorWorker:
         """Return the most recent quote snapshot for each contract on the symbol."""
         latest_time = (
             db.query(sqla_func.max(OptionQuote.quote_time))
-            .filter(OptionQuote.symbol_id == symbol_id)
+            .filter(
+                OptionQuote.symbol_id == symbol_id,
+                OptionQuote.quote_time >= market_data_cutoff(),
+            )
             .scalar()
         )
         if latest_time is None:

@@ -49,7 +49,7 @@ def _worker(
         order_router=router or OrderRouter(dry_run=True),
         position_manager=pm or MagicMock(spec=PositionManager),
     )
-    w._fetch_unrouted_alerts = lambda db: alerts or []
+    w._fetch_unrouted_alerts = lambda db, **kw: alerts or []
     return w
 
 
@@ -105,7 +105,7 @@ def test_run_once_routes_each_alert():
 
 async def test_worker_run_cancels_cleanly():
     worker = ExecutionWorker(interval_seconds=0.01)
-    worker._fetch_unrouted_alerts = lambda db: []
+    worker._fetch_unrouted_alerts = lambda db, **kw: []
 
     import app.execution.worker as worker_mod
 
@@ -127,3 +127,22 @@ async def test_worker_run_cancels_cleanly():
             await task
     finally:
         worker_mod.SessionLocal = original
+
+
+def test_fetch_unrouted_alerts_applies_batch_limit():
+    db = _db_mock()
+    candidate_query = MagicMock()
+    candidate_query.filter.return_value = candidate_query
+    candidate_query.exists.return_value = MagicMock()
+
+    alert_query = MagicMock()
+    alert_query.filter.return_value = alert_query
+    alert_query.order_by.return_value = alert_query
+    alert_query.limit.return_value = alert_query
+    alert_query.all.return_value = []
+
+    db.query.side_effect = [candidate_query, alert_query]
+
+    ExecutionWorker._fetch_unrouted_alerts(db, batch_size=17)
+
+    alert_query.limit.assert_called_once_with(17)

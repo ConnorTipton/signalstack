@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.db.models.news import NewsArticle, NewsArticleTicker
 from app.db.models.raw_events import RawOfficialNewsEvent
 from app.db.session import SessionLocal
+from app.ingest_news.symbol_lookup import resolve_symbol_ids
 from app.providers.official_feeds.edgar import EdgarEntry, EdgarPoller
 
 log = logging.getLogger(__name__)
@@ -124,9 +125,12 @@ class EdgarWorker:
         db.add(article)
         db.flush()
 
+        ticker = entry.ticker.upper()
+        symbol_ids = resolve_symbol_ids(db, [ticker])
         db.add(
             NewsArticleTicker(
                 article_id=article.id,
-                ticker=entry.ticker,
+                symbol_id=symbol_ids.get(ticker),
+                ticker=ticker,
             )
         )

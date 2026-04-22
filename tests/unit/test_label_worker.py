@@ -43,6 +43,8 @@ async def test_label_worker_skips_articles_failing_prefilter():
     worker = LabelWorker(client=client, interval_seconds=9999, batch_size=1)
     worker._fetch_unlabeled = lambda n: [article]
     worker._persist_label = lambda *a, **kw: None
+    skipped: list[int] = []
+    worker._persist_prefilter_skip = lambda article_id: skipped.append(article_id)
 
     task = asyncio.create_task(worker.run())
     await asyncio.sleep(0.05)
@@ -51,6 +53,7 @@ async def test_label_worker_skips_articles_failing_prefilter():
         await task
 
     client.generate.assert_not_awaited()
+    assert skipped == [1]
 
 
 async def test_label_worker_calls_llm_for_matching_article():

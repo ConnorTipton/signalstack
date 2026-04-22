@@ -114,11 +114,11 @@ def test_build_event_handles_none_article():
     assert evt.source_tier is None
 
 
-def test_build_event_handles_none_ticker_symbol_id():
+def test_build_event_rejects_none_ticker_symbol_id():
     lbl = _label()
     tr = _ticker("SPY", symbol_id=None)
-    evt = NewsDetector._build_event(lbl, _article(), tr)
-    assert evt.symbol_id == 0
+    with pytest.raises(ValueError):
+        NewsDetector._build_event(lbl, _article(), tr)
 
 
 def test_build_event_handles_none_importance_and_confidence():
@@ -150,6 +150,18 @@ def test_run_once_skips_label_with_no_tickers():
     detector = NewsDetector()
     detector._fetch_undetected = lambda db, **kw: [_label()]
     detector._fetch_tickers = lambda db, article_id: []
+
+    db = _db()
+    count = detector.run_once(db)
+
+    assert count == 0
+    db.add.assert_not_called()
+
+
+def test_run_once_skips_ticker_with_no_symbol_id():
+    detector = NewsDetector()
+    detector._fetch_undetected = lambda db, **kw: [_label()]
+    detector._fetch_tickers = lambda db, article_id: [_ticker("AAPL", None)]
 
     db = _db()
     count = detector.run_once(db)

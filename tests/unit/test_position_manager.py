@@ -93,6 +93,7 @@ def _dry_run_db(order: MagicMock, existing_position: MagicMock | None = None) ->
         fq = MagicMock()
         fq.filter.return_value = fq
         fq.order_by.return_value = fq  # chain order_by so OptionQuote lookups work
+        fq.limit.return_value = fq
 
         if model is PaperOrder:
             fq.all.return_value = [order]
@@ -141,6 +142,7 @@ def _exit_db(
         fq = MagicMock()
         fq.filter.return_value = fq
         fq.order_by.return_value = fq
+        fq.limit.return_value = fq
 
         if model is PaperPosition:
             fq.all.return_value = [position]
@@ -162,6 +164,17 @@ def _exit_db(
 
     db.query.side_effect = query_side_effect
     return db
+
+
+def _limited_query_db(rows=None) -> tuple[MagicMock, MagicMock]:
+    db = MagicMock()
+    query = MagicMock()
+    query.filter.return_value = query
+    query.order_by.return_value = query
+    query.limit.return_value = query
+    query.all.return_value = rows or []
+    db.query.return_value = query
+    return db, query
 
 
 # ---------------------------------------------------------------------------
@@ -277,6 +290,7 @@ def test_process_opens_position_with_ask_price_as_entry():
         fq = MagicMock()
         fq.filter.return_value = fq
         fq.order_by.return_value = fq
+        fq.limit.return_value = fq
         if model is PaperOrder:
             fq.all.return_value = [order]
             fq.first.return_value = None
@@ -322,6 +336,7 @@ def test_open_position_sets_target_prices():
         fq = MagicMock()
         fq.filter.return_value = fq
         fq.order_by.return_value = fq
+        fq.limit.return_value = fq
         if model is PaperOrder:
             fq.all.return_value = [order]
             fq.first.return_value = None
@@ -389,6 +404,7 @@ def _time_stop_db(positions: list, *, order_by_chained: bool = True) -> MagicMoc
             fq = MagicMock()
             fq.filter.return_value = fq
             fq.order_by.return_value = fq  # chain so OptionQuote lookups return None cleanly
+            fq.limit.return_value = fq
             fq.all.return_value = positions if model is PaperPosition else []
             fq.first.return_value = None
             return fq
@@ -430,6 +446,30 @@ def test_process_no_exit_when_no_time_stop_set():
     PositionManager().process(db)
 
     assert pos.status == "open"
+
+
+def test_promote_fills_applies_order_batch_limit():
+    db, query = _limited_query_db()
+
+    PositionManager(broker_client=MagicMock(), order_batch_size=7)._promote_fills(db)
+
+    query.limit.assert_called_once_with(7)
+
+
+def test_open_dry_run_positions_applies_order_batch_limit():
+    db, query = _limited_query_db()
+
+    PositionManager(order_batch_size=8)._open_dry_run_positions(db)
+
+    query.limit.assert_called_once_with(8)
+
+
+def test_check_exits_applies_position_batch_limit():
+    db, query = _limited_query_db()
+
+    PositionManager(position_batch_size=9)._check_exits(db)
+
+    query.limit.assert_called_once_with(9)
 
 
 # ---------------------------------------------------------------------------

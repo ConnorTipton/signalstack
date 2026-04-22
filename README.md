@@ -34,8 +34,10 @@ The pipeline (ingestion → detection → alerts → paper execution) runs as as
 uv run python -m app.main_workers
 ```
 
-Workers start unconditionally: Edgar, RSS, Marketaux, LabelWorker, TradierWorker, BarAggregator, NewsDetector, PriceDetector, OptionsDetector, AlertWorker.  
-Conditional on credentials: ChainSnapshotWorker (needs `TRADIER_API_TOKEN`), ExecutionWorker (needs `ALPACA_API_KEY`).
+Workers always started: Edgar, RSS, NewsDetector, PriceDetector, OptionsDetector, ScoringWorker, ContractSelectorWorker, AlertWorker, DailyMetricsWorker.
+Conditional on credentials: LabelWorker (needs `CLOUD_LLM_API_KEY`), MarketauxWorker (needs `MARKETAUX_API_TOKEN`), Tradier stream + chain snapshots (needs `TRADIER_API_TOKEN`), Alpaca bars + chain snapshots fallback and ExecutionWorker (need Alpaca keys).
+
+Set `MONITORED_TICKERS` and `RSS_FEEDS` in `.env` to change the universe or feed list without editing code. `RSS_FEEDS` uses semicolon-separated `source|url` or `source|url|ticker` entries.
 
 ## Development
 
@@ -43,6 +45,14 @@ Conditional on credentials: ChainSnapshotWorker (needs `TRADIER_API_TOKEN`), Exe
 uv run pytest           # tests
 uv run ruff check .     # lint
 uv run ruff format .    # format
+```
+
+Integration tests use `TEST_DATABASE_URL` when set, otherwise they create/use the configured database name with `_test` appended. They refuse to run against the application database.
+
+## Metrics backfill
+
+```bash
+uv run python scripts/backfill_daily_metrics.py --start 2026-04-01 --end 2026-04-22
 ```
 
 See `.env.example` for the full list of env vars and which phase each belongs to.

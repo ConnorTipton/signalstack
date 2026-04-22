@@ -1,6 +1,17 @@
 from datetime import date, datetime
 
-from sqlalchemy import BigInteger, Date, DateTime, Identity, Integer, Numeric, String, func
+from sqlalchemy import (
+    BigInteger,
+    Date,
+    DateTime,
+    Identity,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -10,6 +21,9 @@ class UnderlyingBar1m(Base):
     """1-minute OHLCV bars. Hypertable partitioned on bar_time."""
 
     __tablename__ = "underlying_bars_1m"
+    __table_args__ = (
+        Index("ix_underlying_bars_symbol_time_desc", "symbol_id", text("bar_time DESC")),
+    )
 
     # Natural composite PK satisfies TimescaleDB (time column included).
     bar_time: Mapped[datetime] = mapped_column(
@@ -54,6 +68,14 @@ class OptionQuote(Base):
     """Streaming option contract quotes. Hypertable partitioned on quote_time."""
 
     __tablename__ = "option_quotes"
+    __table_args__ = (
+        Index(
+            "ix_option_quotes_contract_time_desc",
+            "contract_symbol",
+            text("quote_time DESC"),
+        ),
+        Index("ix_option_quotes_symbol_time_desc", "symbol_id", text("quote_time DESC")),
+    )
 
     quote_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True, nullable=False
@@ -83,6 +105,7 @@ class OptionTrade(Base):
     """Printed option trades. Hypertable partitioned on trade_time."""
 
     __tablename__ = "option_trades"
+    __table_args__ = (Index("ix_option_trades_symbol_trade_time", "symbol_id", "trade_time"),)
 
     trade_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True, nullable=False
@@ -106,6 +129,13 @@ class OptionChainSnapshot(Base):
     """Periodic summary of an option chain for one expiration. Hypertable on snapshot_time."""
 
     __tablename__ = "option_chain_snapshots"
+    __table_args__ = (
+        Index(
+            "ix_option_chain_snapshots_symbol_snapshot_time",
+            "symbol_id",
+            "snapshot_time",
+        ),
+    )
 
     snapshot_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True, nullable=False

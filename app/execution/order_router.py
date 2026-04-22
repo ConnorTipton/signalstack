@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
+from app.core.market_data_freshness import market_data_cutoff
 from app.db.models.execution import Alert, PaperOrder, PaperPosition
 from app.db.models.market import OptionQuote
 
@@ -25,7 +26,10 @@ log = logging.getLogger(__name__)
 def _fetch_ask_price(db: Session, contract_symbol: str) -> float | None:
     row = (
         db.query(OptionQuote)
-        .filter(OptionQuote.contract_symbol == contract_symbol)
+        .filter(
+            OptionQuote.contract_symbol == contract_symbol,
+            OptionQuote.quote_time >= market_data_cutoff(),
+        )
         .order_by(OptionQuote.quote_time.desc())
         .first()
     )

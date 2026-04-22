@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import BigInteger, Date, DateTime, Integer, Numeric, String, Text, func
+from sqlalchemy import BigInteger, Date, DateTime, Index, Integer, Numeric, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -11,6 +11,18 @@ class DetectedEvent(Base):
     """Output of a single detector run (A=news, B=price, C=options)."""
 
     __tablename__ = "detected_events"
+    __table_args__ = (
+        Index(
+            "uq_detected_events_detector_article_symbol",
+            "detector",
+            "news_article_id",
+            "symbol_id",
+            unique=True,
+            postgresql_where=text("news_article_id IS NOT NULL"),
+            sqlite_where=text("news_article_id IS NOT NULL"),
+        ),
+        Index("ix_detected_events_detected_at", "detected_at"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     detector: Mapped[str] = mapped_column(String(1), nullable=False)
@@ -34,6 +46,17 @@ class SignalCandidate(Base):
     """Scored combination of A+B+C detector outputs for a single ticker."""
 
     __tablename__ = "signal_candidates"
+    __table_args__ = (
+        Index(
+            "uq_signal_candidates_news_event_id",
+            "news_event_id",
+            unique=True,
+            postgresql_where=text("news_event_id IS NOT NULL"),
+            sqlite_where=text("news_event_id IS NOT NULL"),
+        ),
+        Index("ix_signal_candidates_status_contract_symbol", "status", "contract_symbol"),
+        Index("ix_signal_candidates_created_at", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     symbol_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)

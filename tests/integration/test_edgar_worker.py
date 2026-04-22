@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 from app.db.models.news import NewsArticle, NewsArticleTicker
 from app.db.models.raw_events import RawOfficialNewsEvent
+from app.db.models.symbols import Symbol
 from app.ingest_news.edgar_worker import EdgarWorker
 from app.providers.official_feeds.edgar import EdgarEntry
 
@@ -76,6 +77,9 @@ def test_write_entry_stores_news_article(db_session):
 
 
 def test_write_entry_stores_ticker_association(db_session):
+    db_session.add(Symbol(ticker="AAPL", name="Apple Inc."))
+    db_session.flush()
+
     EdgarWorker._write_entry(db_session, _ENTRY, _NOW)
     db_session.flush()
 
@@ -83,6 +87,7 @@ def test_write_entry_stores_ticker_association(db_session):
     ticker_row = db_session.query(NewsArticleTicker).one()
     assert ticker_row.article_id == article.id
     assert ticker_row.ticker == "AAPL"
+    assert ticker_row.symbol_id is not None
 
 
 # ---------------------------------------------------------------------------

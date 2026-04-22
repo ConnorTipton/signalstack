@@ -21,10 +21,17 @@ class Settings(BaseSettings):
     environment: str = Field(default="local")
     runtime_mode: RuntimeMode = RuntimeMode.BUILD
     log_level: str = "INFO"
+    monitored_tickers: str = "AAPL,MSFT,NVDA,TSLA,AMZN,META,GOOGL,AMD,SPY,QQQ,IWM,NFLX,AVGO,PLTR"
+    rss_feeds: str = (
+        "businesswire|https://feeds.businesswire.com/rss/home/?rss=G22;"
+        "globenewswire|https://www.globenewswire.com/RssFeed/subjectcode/15-Major+Periodic+Reports;"
+        "prnewswire|https://prnewswire.com/rss/news-releases-list.rss"
+    )
 
     database_url: str = Field(
         default="postgresql+psycopg://signalstack:signalstack@localhost:5432/signalstack"
     )
+    test_database_url: str | None = None
 
     tradier_api_token: str | None = None
     tradier_account_id: str | None = None
@@ -43,6 +50,7 @@ class Settings(BaseSettings):
     telegram_chat_id: str | None = None
 
     alerts_dry_run: bool = True
+    market_data_max_age_minutes: int = 15
 
 
 settings = Settings()

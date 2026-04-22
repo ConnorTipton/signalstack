@@ -3,6 +3,7 @@
 from datetime import UTC, date, datetime
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.db.models.execution import Alert, DailyMetric, PaperOrder, PaperPosition, PositionEvent
 from app.db.models.news import LlmNewsLabel, NewsArticle, NewsArticleTicker
@@ -20,6 +21,12 @@ pytestmark = pytest.mark.usefixtures("db_engine")
 NOW = datetime(2026, 4, 20, 14, 30, 0, tzinfo=UTC)
 TODAY = date(2026, 4, 20)
 EXPIRY = date(2026, 4, 25)
+
+
+def _assert_duplicate_rejected(db_session, row) -> None:
+    with pytest.raises(IntegrityError), db_session.begin_nested():
+        db_session.add(row)
+        db_session.flush()
 
 
 # --- News tables ---
@@ -68,6 +75,32 @@ def test_llm_news_label_insert(db_session):
     assert label.id is not None
 
 
+def test_llm_news_label_unique_per_article_and_model(db_session):
+    article = NewsArticle(source_name="edgar", source_tier=1, title="Test headline")
+    db_session.add(article)
+    db_session.flush()
+
+    db_session.add(
+        LlmNewsLabel(
+            article_id=article.id,
+            model_name="claude-test",
+            prompt_text="Classify this headline.",
+            response_text="{}",
+        )
+    )
+    db_session.flush()
+
+    _assert_duplicate_rejected(
+        db_session,
+        LlmNewsLabel(
+            article_id=article.id,
+            model_name="claude-test",
+            prompt_text="Classify this headline again.",
+            response_text="{}",
+        ),
+    )
+
+
 # --- Signal tables ---
 
 
@@ -87,6 +120,30 @@ def test_detected_event_insert(db_session):
     assert event.id is not None
 
 
+def test_detected_event_unique_per_detector_article_symbol(db_session):
+    db_session.add(
+        DetectedEvent(
+            detector="A",
+            symbol_id=1,
+            ticker="AAPL",
+            event_type="earnings",
+            news_article_id=123,
+        )
+    )
+    db_session.flush()
+
+    _assert_duplicate_rejected(
+        db_session,
+        DetectedEvent(
+            detector="A",
+            symbol_id=1,
+            ticker="AAPL",
+            event_type="guidance",
+            news_article_id=123,
+        ),
+    )
+
+
 def test_signal_candidate_insert(db_session):
     candidate = SignalCandidate(
         symbol_id=1,
@@ -103,6 +160,28 @@ def test_signal_candidate_insert(db_session):
     db_session.add(candidate)
     db_session.flush()
     assert candidate.id is not None
+
+
+def test_signal_candidate_unique_per_news_event(db_session):
+    db_session.add(
+        SignalCandidate(
+            symbol_id=1,
+            ticker="AAPL",
+            news_event_id=456,
+            status="promoted",
+        )
+    )
+    db_session.flush()
+
+    _assert_duplicate_rejected(
+        db_session,
+        SignalCandidate(
+            symbol_id=1,
+            ticker="AAPL",
+            news_event_id=456,
+            status="promoted",
+        ),
+    )
 
 
 # --- Execution tables ---
@@ -126,6 +205,30 @@ def test_alert_insert(db_session):
     assert alert.id is not None
 
 
+def test_alert_unique_per_signal_candidate(db_session):
+    db_session.add(
+        Alert(
+            signal_candidate_id=789,
+            symbol_id=1,
+            ticker="AAPL",
+            direction="bullish",
+            score=83.5,
+        )
+    )
+    db_session.flush()
+
+    _assert_duplicate_rejected(
+        db_session,
+        Alert(
+            signal_candidate_id=789,
+            symbol_id=1,
+            ticker="AAPL",
+            direction="bullish",
+            score=83.5,
+        ),
+    )
+
+
 def test_paper_order_insert(db_session):
     order = PaperOrder(
         symbol_id=1,
@@ -142,6 +245,42 @@ def test_paper_order_insert(db_session):
     db_session.add(order)
     db_session.flush()
     assert order.id is not None
+
+
+def test_paper_order_unique_per_alert(db_session):
+    db_session.add(
+        PaperOrder(
+            alert_id=321,
+            symbol_id=1,
+            ticker="AAPL",
+            contract_symbol="AAPL260425C00200000",
+            option_type="call",
+            strike=200.0,
+            expiration_date=EXPIRY,
+            side="buy",
+            quantity=1,
+            limit_price=3.50,
+            status="pending",
+        ),
+    )
+    db_session.flush()
+
+    _assert_duplicate_rejected(
+        db_session,
+        PaperOrder(
+            alert_id=321,
+            symbol_id=1,
+            ticker="AAPL",
+            contract_symbol="AAPL260425C00200000",
+            option_type="call",
+            strike=200.0,
+            expiration_date=EXPIRY,
+            side="buy",
+            quantity=1,
+            limit_price=3.50,
+            status="pending",
+        ),
+    )
 
 
 def test_paper_position_insert(db_session):

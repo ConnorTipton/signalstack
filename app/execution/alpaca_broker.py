@@ -1,7 +1,7 @@
 """Alpaca paper trading broker client.
 
 Thin synchronous wrapper around the Alpaca trading REST API.
-Defaults to the paper endpoint; flip `paper=False` only for live (never in V1).
+V1 is paper-only and refuses to construct a live trading client.
 """
 
 from __future__ import annotations
@@ -9,7 +9,6 @@ from __future__ import annotations
 import httpx
 
 _PAPER_URL = "https://paper-api.alpaca.markets"
-_LIVE_URL = "https://api.alpaca.markets"
 _TIMEOUT = 10.0
 
 
@@ -27,7 +26,7 @@ class AlpacaBrokerClient:
     api_key / secret_key:
         Alpaca credentials. Use paper-account keys when ``paper=True``.
     paper:
-        If True (default), routes requests to the paper endpoint.
+        Must be True in V1. Passing False raises ValueError.
     """
 
     def __init__(
@@ -38,10 +37,11 @@ class AlpacaBrokerClient:
         paper: bool = True,
         http_client: httpx.Client | None = None,
     ) -> None:
-        base_url = _PAPER_URL if paper else _LIVE_URL
+        if not paper:
+            raise ValueError("Live Alpaca trading is disabled in SignalStack V1")
         self._own_client = http_client is None
         self._http = http_client or httpx.Client(
-            base_url=base_url,
+            base_url=_PAPER_URL,
             headers={
                 "APCA-API-KEY-ID": api_key,
                 "APCA-API-SECRET-KEY": secret_key,

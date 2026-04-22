@@ -14,8 +14,12 @@ import app.db.models  # noqa: F401, E402
 from app.core.config import settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
 
-# Override the URL from alembic.ini with the one from our settings.
-config.set_main_option("sqlalchemy.url", settings.database_url)
+_DEFAULT_INI_URL = "postgresql+psycopg://signalstack:signalstack@localhost:5432/signalstack"
+
+# Use settings for normal app runs, but preserve an explicitly injected URL
+# from test fixtures or one-off migration commands.
+if config.get_main_option("sqlalchemy.url") == _DEFAULT_INI_URL:
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 target_metadata = Base.metadata
 

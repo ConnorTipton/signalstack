@@ -5,6 +5,7 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
+    Index,
     Integer,
     Numeric,
     String,
@@ -22,6 +23,17 @@ class Alert(Base):
     """Decision-ready alert matching the §16 template."""
 
     __tablename__ = "alerts"
+    __table_args__ = (
+        Index(
+            "uq_alerts_signal_candidate_id",
+            "signal_candidate_id",
+            unique=True,
+            postgresql_where=text("signal_candidate_id IS NOT NULL"),
+            sqlite_where=text("signal_candidate_id IS NOT NULL"),
+        ),
+        Index("ix_alerts_created_at", "created_at"),
+        Index("ix_alerts_sent_at", "sent_at"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     signal_candidate_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
@@ -53,6 +65,16 @@ class Alert(Base):
 
 class PaperOrder(Base):
     __tablename__ = "paper_orders"
+    __table_args__ = (
+        Index(
+            "uq_paper_orders_alert_id",
+            "alert_id",
+            unique=True,
+            postgresql_where=text("alert_id IS NOT NULL"),
+            sqlite_where=text("alert_id IS NOT NULL"),
+        ),
+        Index("ix_paper_orders_created_at", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     alert_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
@@ -81,6 +103,10 @@ class PaperOrder(Base):
 
 class PaperPosition(Base):
     __tablename__ = "paper_positions"
+    __table_args__ = (
+        Index("ix_paper_positions_opened_at", "opened_at"),
+        Index("ix_paper_positions_closed_at", "closed_at"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     order_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

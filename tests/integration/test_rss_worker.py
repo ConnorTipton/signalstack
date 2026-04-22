@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 from app.db.models.news import NewsArticle, NewsArticleTicker
 from app.db.models.raw_events import RawOfficialNewsEvent
+from app.db.models.symbols import Symbol
 from app.ingest_news.rss_worker import RssWorker
 from app.providers.official_feeds.rss import RssEntry
 
@@ -75,6 +76,9 @@ def test_write_entry_stores_news_article(db_session):
 
 
 def test_write_entry_stores_single_ticker(db_session):
+    db_session.add(Symbol(ticker="AAPL", name="Apple Inc."))
+    db_session.flush()
+
     RssWorker._write_entry(db_session, _ENTRY, ["AAPL"], _NOW)
     db_session.flush()
 
@@ -83,14 +87,24 @@ def test_write_entry_stores_single_ticker(db_session):
     assert len(rows) == 1
     assert rows[0].article_id == article.id
     assert rows[0].ticker == "AAPL"
+    assert rows[0].symbol_id is not None
 
 
 def test_write_entry_stores_multiple_tickers(db_session):
+    db_session.add_all(
+        [
+            Symbol(ticker="AAPL", name="Apple Inc."),
+            Symbol(ticker="MSFT", name="Microsoft Corporation"),
+        ]
+    )
+    db_session.flush()
+
     RssWorker._write_entry(db_session, _ENTRY, ["AAPL", "MSFT"], _NOW)
     db_session.flush()
 
-    tickers = {r.ticker for r in db_session.query(NewsArticleTicker).all()}
-    assert tickers == {"AAPL", "MSFT"}
+    rows = db_session.query(NewsArticleTicker).all()
+    assert {r.ticker for r in rows} == {"AAPL", "MSFT"}
+    assert all(r.symbol_id is not None for r in rows)
 
 
 # ---------------------------------------------------------------------------

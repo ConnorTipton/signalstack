@@ -8,8 +8,8 @@ Results are stored in llm_news_labels. The raw prompt + response are always
 persisted so the labeling can be replayed or re-run with a different model
 (blueprint §20.E).
 
-Articles that don't pass the keyword prefilter are silently skipped (not
-stored in llm_news_labels — absence of a label means "not relevant").
+Articles that don't pass the keyword prefilter are marked with a lightweight
+``prefilter_skip`` label so they do not get re-fetched forever.
 """
 
 from __future__ import annotations
@@ -79,6 +79,7 @@ class LabelWorker:
             category = prefilter_article(article.title, article.body)
             if category is None:
                 log.debug("Prefilter skip: article %d — %s", article.id, article.title[:60])
+                await asyncio.to_thread(self._persist_prefilter_skip, article.id)
                 continue
             log.debug("Prefilter pass (%s): article %d", category, article.id)
             try:
@@ -123,6 +124,32 @@ class LabelWorker:
                 db, article_id, model_name, prompt_text, response_text, parsed, processing_ms
             )
             db.commit()
+
+    @staticmethod
+    def _persist_prefilter_skip(article_id: int) -> None:
+        with SessionLocal() as db:
+            LabelWorker._write_prefilter_skip(db, article_id)
+            db.commit()
+
+    @staticmethod
+    def _write_prefilter_skip(db: Session, article_id: int) -> None:
+        existing = db.query(LlmNewsLabel).filter(LlmNewsLabel.article_id == article_id).first()
+        if existing is not None:
+            return
+        db.add(
+            LlmNewsLabel(
+                article_id=article_id,
+                model_name="prefilter",
+                prompt_text="",
+                response_text="prefilter_skip",
+                event_type=None,
+                polarity=None,
+                importance=None,
+                confidence=None,
+                one_sentence_summary=None,
+                processing_ms=0,
+            )
+        )
 
     @staticmethod
     def _write_label(

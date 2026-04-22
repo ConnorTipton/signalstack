@@ -201,8 +201,7 @@ class PriceDetectorWorker:
         while True:
             t0 = datetime.now(UTC)
             try:
-                with SessionLocal() as db:
-                    count = self.run_once(db)
+                count = await asyncio.to_thread(self._run_once_in_session)
                 if count:
                     log.info("PriceDetector: emitted %d event(s)", count)
             except asyncio.CancelledError:
@@ -211,6 +210,10 @@ class PriceDetectorWorker:
                 log.warning("PriceDetector cycle error: %s", exc)
             elapsed = (datetime.now(UTC) - t0).total_seconds()
             await asyncio.sleep(max(0.0, self._interval - elapsed))
+
+    def _run_once_in_session(self) -> int:
+        with SessionLocal() as db:
+            return self.run_once(db)
 
     def run_once(self, db: Session) -> int:
         """Emit Detector B events for all unmatched Detector A events.

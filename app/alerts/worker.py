@@ -6,8 +6,8 @@ On each cycle:
   Phase B — retry Alert rows that failed in a previous cycle (send_attempts ≥ 1,
              sent_at IS NULL, send_attempts < max_retries).
 
-If telegram_client is None, alerts are persisted in the DB but sends are
-skipped silently.  dry_run=True (the default) prefixes messages with
+If telegram_client is None, alerts are persisted and marked handled locally
+so API/review and paper execution can still see them. dry_run=True prefixes messages with
 "[DRY RUN]" so they are clearly labelled in chat.
 """
 
@@ -75,8 +75,7 @@ class AlertWorker:
         while True:
             t0 = datetime.now(UTC)
             try:
-                with SessionLocal() as db:
-                    count = self.run_once(db)
+                count = await asyncio.to_thread(self._run_once_in_session)
                 if count:
                     log.info("AlertWorker: created %d new alert(s)", count)
             except asyncio.CancelledError:
@@ -85,6 +84,10 @@ class AlertWorker:
                 log.warning("AlertWorker cycle error: %s", exc)
             elapsed = (datetime.now(UTC) - t0).total_seconds()
             await asyncio.sleep(max(0.0, self._interval - elapsed))
+
+    def _run_once_in_session(self) -> int:
+        with SessionLocal() as db:
+            return self.run_once(db)
 
     def run_once(self, db: Session) -> int:
         """Process new candidates and retry failed alerts.
@@ -116,7 +119,11 @@ class AlertWorker:
     def _send(self, alert: Alert, now: datetime) -> None:
         """Attempt to send one alert via Telegram; update send state in-place."""
         if self._telegram is None:
-            log.debug("AlertWorker: Telegram not configured, skipping send for %s", alert.ticker)
+            alert.sent_at = now
+            log.debug(
+                "AlertWorker: Telegram not configured, marking alert for %s as persisted",
+                alert.ticker,
+            )
             return
         try:
             text = AlertFormatter.render(alert)

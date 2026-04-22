@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from app.db.models.news import NewsArticle, NewsArticleTicker
 from app.db.models.raw_events import RawMarketauxEvent
 from app.db.session import SessionLocal
+from app.ingest_news.symbol_lookup import resolve_symbol_ids
 from app.providers.marketaux.client import MarketauxArticle, MarketauxClient
 
 log = logging.getLogger(__name__)
@@ -95,27 +96,21 @@ class MarketauxWorker:
         if existing is not None:
             return
 
-        # Write raw payload before any normalized writes.
-        # Skip if a raw row with the same content_hash already exists — two
-        # articles in the same API response can share an identical title.
-        raw_exists = article.content_hash and (
-            db.query(RawMarketauxEvent).filter_by(content_hash=article.content_hash).first()
-            is not None
-        )
-        if not raw_exists:
-            db.add(
-                RawMarketauxEvent(
-                    source_name=_SOURCE_NAME,
-                    source_tier=2,
-                    provider_event_id=article.uuid,
-                    provider_published_at=article.published_at,
-                    received_at=received_at,
-                    content_hash=article.content_hash,
-                    related_url=article.url,
-                    normalization_version=_NORMALIZATION_VERSION,
-                    payload=article.raw,
-                )
+        # Write raw payload before normalized writes. Raw idempotency is keyed
+        # by provider_event_id so same-title articles are still preserved.
+        db.add(
+            RawMarketauxEvent(
+                source_name=_SOURCE_NAME,
+                source_tier=2,
+                provider_event_id=article.uuid,
+                provider_published_at=article.published_at,
+                received_at=received_at,
+                content_hash=article.content_hash,
+                related_url=article.url,
+                normalization_version=_NORMALIZATION_VERSION,
+                payload=article.raw,
             )
+        )
 
         # Pass 2: cross-source URL dedup — Tier 1 article at same URL
         dupe: NewsArticle | None = None
@@ -154,5 +149,13 @@ class MarketauxWorker:
 
         # Ticker rows only for non-duplicates
         if dupe is None:
+            symbol_ids = resolve_symbol_ids(db, article.tickers)
             for ticker in article.tickers:
-                db.add(NewsArticleTicker(article_id=norm.id, ticker=ticker))
+                normalized = ticker.upper()
+                db.add(
+                    NewsArticleTicker(
+                        article_id=norm.id,
+                        symbol_id=symbol_ids.get(normalized),
+                        ticker=normalized,
+                    )
+                )

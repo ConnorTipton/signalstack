@@ -1,6 +1,17 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Identity, Integer, Numeric, String, Text, func
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Identity,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,6 +39,7 @@ class ProviderHealth(Base):
     """Time-series log of provider health checks. Hypertable partitioned on checked_at."""
 
     __tablename__ = "provider_health"
+    __table_args__ = (Index("ix_provider_health_name_checked_at", "provider_name", "checked_at"),)
 
     checked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True, nullable=False

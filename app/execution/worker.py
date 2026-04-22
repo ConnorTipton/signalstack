@@ -36,6 +36,7 @@ from app.execution.position_manager import PositionManager
 log = logging.getLogger(__name__)
 
 _DEFAULT_INTERVAL = 30.0
+_DEFAULT_BATCH = 50
 
 
 class ExecutionWorker:
@@ -52,6 +53,8 @@ class ExecutionWorker:
     dry_run:
         Passed to a default OrderRouter when order_router is None. Ignored
         if order_router is supplied explicitly.
+    batch_size:
+        Max sent alerts to route per cycle. Default 50.
     """
 
     def __init__(
@@ -60,19 +63,20 @@ class ExecutionWorker:
         position_manager: PositionManager | None = None,
         *,
         interval_seconds: float = _DEFAULT_INTERVAL,
+        batch_size: int = _DEFAULT_BATCH,
         dry_run: bool = True,
     ) -> None:
         self._router = order_router or OrderRouter(dry_run=dry_run)
         self._pm = position_manager or PositionManager()
         self._interval = interval_seconds
+        self._batch_size = batch_size
 
     async def run(self) -> None:
         """Main loop: process execution, sleep, repeat until cancelled."""
         while True:
             t0 = datetime.now(UTC)
             try:
-                with SessionLocal() as db:
-                    count = self.run_once(db)
+                count = await asyncio.to_thread(self._run_once_in_session)
                 if count:
                     log.info("ExecutionWorker: routed %d new order(s)", count)
             except asyncio.CancelledError:
@@ -82,12 +86,16 @@ class ExecutionWorker:
             elapsed = (datetime.now(UTC) - t0).total_seconds()
             await asyncio.sleep(max(0.0, self._interval - elapsed))
 
+    def _run_once_in_session(self) -> int:
+        with SessionLocal() as db:
+            return self.run_once(db)
+
     def run_once(self, db: Session) -> int:
         """Route unrouted alerts and process positions.
 
         Returns the count of new PaperOrders created.
         """
-        unrouted = self._fetch_unrouted_alerts(db)
+        unrouted = self._fetch_unrouted_alerts(db, batch_size=self._batch_size)
         new_orders = 0
         for alert in unrouted:
             order = self._router.route(alert, db)
@@ -103,7 +111,10 @@ class ExecutionWorker:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _fetch_unrouted_alerts(db: Session) -> list[Alert]:
+    def _fetch_unrouted_alerts(
+        db: Session,
+        batch_size: int = _DEFAULT_BATCH,
+    ) -> list[Alert]:
         """Return sent Alerts that have no PaperOrder yet."""
         already_routed = db.query(PaperOrder).filter(PaperOrder.alert_id == Alert.id).exists()
         return (
@@ -114,5 +125,6 @@ class ExecutionWorker:
                 ~already_routed,
             )
             .order_by(Alert.created_at)
+            .limit(batch_size)
             .all()
         )

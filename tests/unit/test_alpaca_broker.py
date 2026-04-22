@@ -31,6 +31,11 @@ def _err(status_code: int) -> MagicMock:
 # ---------------------------------------------------------------------------
 
 
+def test_rejects_live_trading_mode():
+    with pytest.raises(ValueError, match="Live Alpaca trading is disabled"):
+        _client(paper=False)
+
+
 def test_submit_limit_order_posts_to_orders_endpoint():
     with patch("app.execution.alpaca_broker.httpx.Client") as mock_cls:
         inst = MagicMock()

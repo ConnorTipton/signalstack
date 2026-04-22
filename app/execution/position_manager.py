@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
+from app.core.market_data_freshness import market_data_cutoff
 from app.db.models.execution import Alert, PaperOrder, PaperPosition, PositionEvent
 from app.db.models.market import OptionQuote
 
@@ -34,6 +35,8 @@ _ET = ZoneInfo("America/New_York")
 _INVALIDATION_MULT = 0.5  # close at 50% loss
 _TARGET1_MULT = 2.0  # close at 2× gain
 _TARGET2_MULT = 3.0  # informational 3× level
+_DEFAULT_ORDER_BATCH = 50
+_DEFAULT_POSITION_BATCH = 100
 
 
 def _market_close_et(d: date) -> datetime:
@@ -68,7 +71,10 @@ def _parse_time_stop(time_stop: str | None, expiration_date: date) -> datetime:
 def _fetch_option_quote(db: Session, contract_symbol: str) -> OptionQuote | None:
     return (
         db.query(OptionQuote)
-        .filter(OptionQuote.contract_symbol == contract_symbol)
+        .filter(
+            OptionQuote.contract_symbol == contract_symbol,
+            OptionQuote.quote_time >= market_data_cutoff(),
+        )
         .order_by(OptionQuote.quote_time.desc())
         .first()
     )
@@ -92,10 +98,22 @@ class PositionManager:
     broker_client:
         AlpacaBrokerClient instance. Required for live order polling and sell
         order submission. If None, only dry_run position management runs.
+    order_batch_size:
+        Max submitted/dry-run orders to process per cycle. Default 50.
+    position_batch_size:
+        Max open positions to evaluate per cycle. Default 100.
     """
 
-    def __init__(self, broker_client=None) -> None:
+    def __init__(
+        self,
+        broker_client=None,
+        *,
+        order_batch_size: int = _DEFAULT_ORDER_BATCH,
+        position_batch_size: int = _DEFAULT_POSITION_BATCH,
+    ) -> None:
         self._broker = broker_client
+        self._order_batch_size = order_batch_size
+        self._position_batch_size = position_batch_size
 
     def process(self, db: Session) -> None:
         """Run one management cycle."""
@@ -111,7 +129,13 @@ class PositionManager:
         if self._broker is None:
             return
 
-        submitted = db.query(PaperOrder).filter(PaperOrder.status == "submitted").all()
+        submitted = (
+            db.query(PaperOrder)
+            .filter(PaperOrder.status == "submitted")
+            .order_by(PaperOrder.created_at)
+            .limit(self._order_batch_size)
+            .all()
+        )
         for order in submitted:
             if not order.alpaca_order_id:
                 continue
@@ -136,7 +160,13 @@ class PositionManager:
     # ------------------------------------------------------------------
 
     def _open_dry_run_positions(self, db: Session) -> None:
-        dry_orders = db.query(PaperOrder).filter(PaperOrder.status == "dry_run").all()
+        dry_orders = (
+            db.query(PaperOrder)
+            .filter(PaperOrder.status == "dry_run")
+            .order_by(PaperOrder.created_at)
+            .limit(self._order_batch_size)
+            .all()
+        )
         for order in dry_orders:
             existing = db.query(PaperPosition).filter(PaperPosition.order_id == order.id).first()
             if existing:
@@ -154,7 +184,13 @@ class PositionManager:
 
     def _check_exits(self, db: Session) -> None:
         now = datetime.now(UTC)
-        open_positions = db.query(PaperPosition).filter(PaperPosition.status == "open").all()
+        open_positions = (
+            db.query(PaperPosition)
+            .filter(PaperPosition.status == "open")
+            .order_by(PaperPosition.opened_at)
+            .limit(self._position_batch_size)
+            .all()
+        )
         for pos in open_positions:
             if pos.time_stop_at and now >= pos.time_stop_at:
                 bid = _fetch_bid_price(db, pos.contract_symbol)

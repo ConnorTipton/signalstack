@@ -4,10 +4,12 @@ Tests _write_article directly with the transactional test DB session.
 The Marketaux HTTP client is not exercised here.
 """
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 from app.db.models.news import NewsArticle, NewsArticleTicker
 from app.db.models.raw_events import RawMarketauxEvent
+from app.db.models.symbols import Symbol
 from app.ingest_news.marketaux_worker import MarketauxWorker
 from app.providers.marketaux.client import MarketauxArticle
 
@@ -70,6 +72,9 @@ def test_write_article_stores_news_article(db_session):
 
 
 def test_write_article_stores_ticker_rows(db_session):
+    db_session.add(Symbol(ticker="AAPL", name="Apple Inc."))
+    db_session.flush()
+
     MarketauxWorker._write_article(db_session, _ARTICLE, _NOW)
     db_session.flush()
 
@@ -78,6 +83,7 @@ def test_write_article_stores_ticker_rows(db_session):
     assert len(rows) == 1
     assert rows[0].article_id == article.id
     assert rows[0].ticker == "AAPL"
+    assert rows[0].symbol_id is not None
 
 
 # ---------------------------------------------------------------------------
@@ -166,3 +172,27 @@ def test_write_article_marked_duplicate_when_same_content_hash_exists(db_session
     mkt = db_session.query(NewsArticle).filter_by(provider_event_id=_ARTICLE.uuid).one()
     assert mkt.is_duplicate is True
     assert mkt.duplicate_of_id == earlier.id
+
+
+def test_write_article_preserves_raw_rows_for_same_content_hash(db_session):
+    first = replace(
+        _ARTICLE,
+        uuid="raw-uuid-1",
+        url="https://example.com/one",
+        raw={"uuid": "raw-uuid-1", "title": _ARTICLE.title},
+    )
+    second = replace(
+        _ARTICLE,
+        uuid="raw-uuid-2",
+        url="https://example.com/two",
+        raw={"uuid": "raw-uuid-2", "title": _ARTICLE.title},
+    )
+
+    MarketauxWorker._write_article(db_session, first, _NOW)
+    db_session.flush()
+    MarketauxWorker._write_article(db_session, second, _NOW)
+    db_session.flush()
+
+    raw_rows = db_session.query(RawMarketauxEvent).all()
+    assert len(raw_rows) == 2
+    assert {row.provider_event_id for row in raw_rows} == {"raw-uuid-1", "raw-uuid-2"}

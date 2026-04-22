@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.db.models.news import NewsArticle, NewsArticleTicker
 from app.db.models.raw_events import RawOfficialNewsEvent
 from app.db.session import SessionLocal
+from app.ingest_news.symbol_lookup import resolve_symbol_ids
 from app.providers.official_feeds.rss import FeedConfig, RssEntry, RssPoller, extract_tickers
 
 log = logging.getLogger(__name__)
@@ -137,5 +138,13 @@ class RssWorker:
         db.add(article)
         db.flush()
 
+        symbol_ids = resolve_symbol_ids(db, tickers)
         for ticker in tickers:
-            db.add(NewsArticleTicker(article_id=article.id, ticker=ticker))
+            normalized = ticker.upper()
+            db.add(
+                NewsArticleTicker(
+                    article_id=article.id,
+                    symbol_id=symbol_ids.get(normalized),
+                    ticker=normalized,
+                )
+            )

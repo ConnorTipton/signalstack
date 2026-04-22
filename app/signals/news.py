@@ -48,14 +48,15 @@ class NewsDetector:
                 continue
             article = db.get(NewsArticle, label.article_id)
             tickers = self._fetch_tickers(db, label.article_id)
-            if not tickers:
+            usable_tickers = [ticker_row for ticker_row in tickers if ticker_row.symbol_id]
+            if not usable_tickers:
                 log.debug(
-                    "Skipping label %d — no tickers mapped to article %d",
+                    "Skipping label %d — no usable ticker mappings for article %d",
                     label.id,
                     label.article_id,
                 )
                 continue
-            for ticker_row in tickers:
+            for ticker_row in usable_tickers:
                 db.add(self._build_event(label, article, ticker_row))
                 count += 1
         db.commit()
@@ -75,9 +76,11 @@ class NewsDetector:
         article: NewsArticle | None,
         ticker_row: NewsArticleTicker,
     ) -> DetectedEvent:
+        if ticker_row.symbol_id is None:
+            raise ValueError("NewsArticleTicker.symbol_id must be set before detection")
         return DetectedEvent(
             detector="A",
-            symbol_id=ticker_row.symbol_id or 0,
+            symbol_id=ticker_row.symbol_id,
             ticker=ticker_row.ticker,
             event_type=label.event_type,
             polarity=label.polarity,
@@ -102,7 +105,10 @@ class NewsDetector:
         )
         return (
             db.query(LlmNewsLabel)
-            .filter(~LlmNewsLabel.id.in_(detected_subq))
+            .filter(
+                LlmNewsLabel.event_type.isnot(None),
+                ~LlmNewsLabel.id.in_(detected_subq),
+            )
             .order_by(LlmNewsLabel.id)
             .limit(batch_size)
             .all()
@@ -138,8 +144,7 @@ class NewsDetectorWorker:
         while True:
             t0 = datetime.now(UTC)
             try:
-                with SessionLocal() as db:
-                    count = self._detector.run_once(db)
+                count = await asyncio.to_thread(self._run_once_in_session)
                 if count:
                     log.info("NewsDetector: emitted %d event(s)", count)
             except asyncio.CancelledError:
@@ -148,3 +153,7 @@ class NewsDetectorWorker:
                 log.warning("NewsDetector cycle error: %s", exc)
             elapsed = (datetime.now(UTC) - t0).total_seconds()
             await asyncio.sleep(max(0.0, self._interval - elapsed))
+
+    def _run_once_in_session(self) -> int:
+        with SessionLocal() as db:
+            return self._detector.run_once(db)

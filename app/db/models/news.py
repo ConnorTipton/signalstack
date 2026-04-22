@@ -23,6 +23,7 @@ class NewsArticle(Base):
             unique=True,
             postgresql_where=text("content_hash IS NOT NULL"),
         ),
+        Index("ix_news_articles_created_at", "created_at"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -67,6 +68,16 @@ class NewsArticleTicker(Base):
 
 class LlmNewsLabel(Base):
     __tablename__ = "llm_news_labels"
+    __table_args__ = (
+        Index(
+            "uq_llm_news_labels_article_model",
+            "article_id",
+            "model_name",
+            unique=True,
+            postgresql_where=text("article_id IS NOT NULL"),
+            sqlite_where=text("article_id IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     article_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)

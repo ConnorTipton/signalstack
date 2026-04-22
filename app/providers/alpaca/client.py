@@ -93,10 +93,21 @@ class AlpacaMarketClient:
         end: datetime,
         timeframe: str = "1Min",
     ) -> list[Bar]:
-        raw = await self._get(
+        raw = await self.fetch_bars_raw([symbol], start, end, timeframe)
+        return normalize_bars(raw)
+
+    async def fetch_bars_raw(
+        self,
+        symbols: list[str],
+        start: datetime,
+        end: datetime,
+        timeframe: str = "1Min",
+    ) -> dict:
+        """Return raw Alpaca bars for payload storage before normalization."""
+        return await self._get(
             "/v2/stocks/bars",
             params={
-                "symbols": symbol,
+                "symbols": ",".join(symbols),
                 "timeframe": timeframe,
                 "start": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "end": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -104,7 +115,6 @@ class AlpacaMarketClient:
                 "limit": 10_000,
             },
         )
-        return normalize_bars(raw)
 
     async def get_option_chain(
         self,
@@ -116,16 +126,22 @@ class AlpacaMarketClient:
         Returns an empty list (not an error) on 403 so the router can fall back
         to proxy mode without crashing.
         """
+        raw = await self.fetch_option_chain_raw(symbol, expiration)
+        if not raw:
+            return []
+        return normalize_option_chain(raw)
+
+    async def fetch_option_chain_raw(self, symbol: str, expiration: date) -> dict:
+        """Return raw Alpaca option snapshots, or {} when the account lacks access."""
         try:
-            raw = await self._get(
+            return await self._get(
                 f"/v1beta1/options/snapshots/{symbol}",
                 params={"expiration_date": expiration.isoformat()},
             )
         except AlpacaAPIError as exc:
             if exc.status_code == 403:
-                return []
+                return {}
             raise
-        return normalize_option_chain(raw)
 
     async def get_option_expirations(self, symbol: str) -> list[date]:
         try:

@@ -1,7 +1,7 @@
 # SignalStack V1 — Project Instructions for Claude Code
 
 ## Source of truth
-`signalstack_v1_budget_blueprint_v1_1.txt` in this repo is the authoritative spec. When in doubt, re-read it. If a new decision is made that overrides a blueprint section, note it here explicitly rather than letting drift happen silently.
+`signalstack_v1_budget_blueprint_v1_1.txt` is the original design document. The code and this file are the working truth; consult the blueprint for design rationale and "why" context. If a new decision diverges from the blueprint, note it here rather than letting drift happen silently.
 
 ## Architecture summary
 Three runtime roles inside a single repo:
@@ -17,9 +17,10 @@ Detector logic consumes normalized events only, never provider-specific payloads
 - Apply migrations: `uv run alembic upgrade head`
 - Run workers (full pipeline): `uv run python -m app.main_workers`
 - Run API (review only): `uv run uvicorn app.main:app --reload`
-- Tests: `uv run pytest`
+- Tests: `uv run pytest` (integration tests use `TEST_DATABASE_URL`, or an auto-derived `_test` database; never the app database)
 - Lint: `uv run ruff check .`
 - Format: `uv run ruff format .`
+- Backfill metrics: `uv run python scripts/backfill_daily_metrics.py --start YYYY-MM-DD --end YYYY-MM-DD`
 
 ## Folder ownership rules
 - `app/providers/<name>/` — provider-specific clients and adapters. No detector logic here.
@@ -34,7 +35,7 @@ Detector logic consumes normalized events only, never provider-specific payloads
 - `tests/` — mirrors the `app/` layout where useful.
 
 ## Runtime configuration
-`RUNTIME_MODE` env var accepts `build` (default) | `core` | `upgrade`. It is validated, stored in `settings.runtime_mode`, and logged at startup, but **does not currently gate any workers** — all workers start unconditionally. Reserved for future phased-rollout logic.
+`RUNTIME_MODE` env var accepts `build` (default) | `core` | `upgrade`. It is validated, stored in `settings.runtime_mode`, and logged at startup, but **does not currently gate any workers**. Worker startup is credential-gated: Marketaux and LLM labeling skip when their keys are missing; Tradier is primary market data when configured; Alpaca bars/chain snapshots are the fallback when Alpaca keys exist and Tradier is absent. `MONITORED_TICKERS` and `RSS_FEEDS` configure the runtime universe and feed list. Alpaca execution is paper-only in V1; `ALPACA_PAPER=false` must fail fast.
 
 ## Style rules
 - Python 3.12. Ruff enforces lint + format.
