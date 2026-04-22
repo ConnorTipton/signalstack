@@ -4,6 +4,7 @@ from datetime import date
 from unittest.mock import MagicMock
 
 from app.db.models.execution import Alert, PaperOrder, PaperPosition
+from app.db.models.market import OptionQuote
 from app.execution.order_router import OrderRouter
 
 
@@ -32,18 +33,26 @@ def _alert(
 def _db_mock(
     has_open_position: bool = False,
     has_active_order: bool = False,
+    ask_price: float | None = None,
 ) -> MagicMock:
     db = MagicMock()
     db.add = MagicMock()
 
-    # Simulate query chains for position and order checks
     def query_side_effect(model):
         q = MagicMock()
         q.filter.return_value = q
+        q.order_by.return_value = q
         if model is PaperPosition:
             q.first.return_value = MagicMock() if has_open_position else None
         elif model is PaperOrder:
             q.first.return_value = MagicMock() if has_active_order else None
+        elif model is OptionQuote:
+            if ask_price is not None:
+                mock_quote = MagicMock()
+                mock_quote.ask = ask_price
+                q.first.return_value = mock_quote
+            else:
+                q.first.return_value = None
         else:
             q.first.return_value = None
         return q
@@ -150,29 +159,49 @@ def test_route_sets_expiration_date():
 # ---------------------------------------------------------------------------
 
 
-def test_route_submits_to_broker_when_not_dry_run_and_limit_price_set():
-    broker = MagicMock()
-    broker.submit_limit_order.return_value = {"id": "alp123", "status": "new"}
-
-    a = _alert()
-    router = OrderRouter(broker_client=broker, dry_run=False)
-    order = router.route(a, _db_mock())
-
-    # limit_price is None on the order by default, so broker should NOT be called
-    broker.submit_limit_order.assert_not_called()
-    assert order.status == "pending"
-
 
 def test_route_sets_submit_failed_on_broker_error():
     broker = MagicMock()
     broker.submit_limit_order.side_effect = RuntimeError("network error")
 
-    a = _alert()
-    # Manually set a limit_price to trigger submission path
-    router = OrderRouter(broker_client=broker, dry_run=False)
-    # We can't easily set limit_price via the normal path here without a real
-    # quote; this is a placeholder test confirming the submit_failed path works
-    # when limit_price IS set. We patch the order after construction instead.
-    order = router.route(a, _db_mock())
-    # Without a limit_price the broker is not called; order stays "pending"
-    assert order is not None
+    order = OrderRouter(broker_client=broker, dry_run=False).route(
+        _alert(), _db_mock(ask_price=2.35)
+    )
+    assert order.status == "submit_failed"
+
+
+# ---------------------------------------------------------------------------
+# Limit price from option quote
+# ---------------------------------------------------------------------------
+
+
+def test_route_sets_limit_price_from_quote():
+    order = OrderRouter(dry_run=True).route(_alert(), _db_mock(ask_price=2.35))
+    assert float(order.limit_price) == 2.35
+
+
+def test_route_limit_price_none_when_no_quote():
+    order = OrderRouter(dry_run=True).route(_alert(), _db_mock(ask_price=None))
+    assert order.limit_price is None
+
+
+def test_route_submits_to_broker_when_ask_price_available():
+    broker = MagicMock()
+    broker.submit_limit_order.return_value = {"id": "alp456", "status": "new"}
+
+    order = OrderRouter(broker_client=broker, dry_run=False).route(
+        _alert(), _db_mock(ask_price=3.10)
+    )
+    broker.submit_limit_order.assert_called_once()
+    assert order.status == "submitted"
+    assert order.alpaca_order_id == "alp456"
+
+
+def test_route_no_broker_call_when_no_ask_price():
+    broker = MagicMock()
+
+    order = OrderRouter(broker_client=broker, dry_run=False).route(
+        _alert(), _db_mock(ask_price=None)
+    )
+    broker.submit_limit_order.assert_not_called()
+    assert order.status == "pending"

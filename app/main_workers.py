@@ -129,6 +129,7 @@ async def main() -> None:
     async with MarketauxClient(api_token=settings.marketaux_api_token or "") as mktaux_client:
         marketaux = MarketauxWorker(symbols=TICKERS, client=mktaux_client)
 
+        alpaca_broker = None
         telegram = None
         if settings.telegram_bot_token and settings.telegram_chat_id:
             telegram = TelegramClient(
@@ -175,6 +176,30 @@ async def main() -> None:
         else:
             log.info("ChainSnapshotWorker: no TRADIER_API_TOKEN — skipped (Alpaca-only mode)")
 
+        if settings.alpaca_api_key and settings.alpaca_secret_key:
+            from app.execution.alpaca_broker import AlpacaBrokerClient
+            from app.execution.order_router import OrderRouter
+            from app.execution.position_manager import PositionManager
+            from app.execution.worker import ExecutionWorker
+
+            alpaca_broker = AlpacaBrokerClient(
+                api_key=settings.alpaca_api_key,
+                secret_key=settings.alpaca_secret_key,
+                paper=settings.alpaca_paper,
+            )
+            tasks.append(
+                asyncio.create_task(
+                    ExecutionWorker(
+                        order_router=OrderRouter(broker_client=alpaca_broker, dry_run=False),
+                        position_manager=PositionManager(broker_client=alpaca_broker),
+                    ).run(),
+                    name="execution",
+                )
+            )
+            log.info("ExecutionWorker: Alpaca paper trading enabled (paper=%s)", settings.alpaca_paper)
+        else:
+            log.info("ExecutionWorker: no ALPACA credentials — skipped")
+
         log.info(
             "Running %d workers: %s",
             len(tasks),
@@ -190,6 +215,8 @@ async def main() -> None:
                 if not t.done():
                     t.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+            if alpaca_broker is not None:
+                alpaca_broker.close()
             log.info("All workers stopped")
 
 

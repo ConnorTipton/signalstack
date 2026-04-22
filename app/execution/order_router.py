@@ -17,8 +17,19 @@ from datetime import UTC, datetime
 from sqlalchemy.orm import Session
 
 from app.db.models.execution import Alert, PaperOrder, PaperPosition
+from app.db.models.market import OptionQuote
 
 log = logging.getLogger(__name__)
+
+
+def _fetch_ask_price(db: Session, contract_symbol: str) -> float | None:
+    row = (
+        db.query(OptionQuote)
+        .filter(OptionQuote.contract_symbol == contract_symbol)
+        .order_by(OptionQuote.quote_time.desc())
+        .first()
+    )
+    return float(row.ask) if row and row.ask else None
 
 
 def _has_open_position(db: Session, ticker: str) -> bool:
@@ -77,6 +88,10 @@ class OrderRouter:
             )
             return None
 
+        limit_price = _fetch_ask_price(db, alert.contract_symbol)
+        if limit_price is None:
+            log.debug("OrderRouter: no ask price found for %s, order will not submit to Alpaca", alert.contract_symbol)
+
         order = PaperOrder(
             alert_id=alert.id,
             symbol_id=alert.symbol_id,
@@ -88,7 +103,7 @@ class OrderRouter:
             side="buy",
             quantity=1,
             order_type="limit",
-            limit_price=None,
+            limit_price=limit_price,
             status="dry_run" if self._dry_run else "pending",
         )
 
