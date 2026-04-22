@@ -14,11 +14,12 @@ Detector logic consumes normalized events only, never provider-specific payloads
 ## Build / test / run commands
 - Install deps: `uv sync --extra dev`
 - Start DB: `docker compose up -d postgres`
-- Run API: `uv run uvicorn app.main:app --reload`
+- Apply migrations: `uv run alembic upgrade head`
+- Run workers (full pipeline): `uv run python -m app.main_workers`
+- Run API (review only): `uv run uvicorn app.main:app --reload`
 - Tests: `uv run pytest`
 - Lint: `uv run ruff check .`
 - Format: `uv run ruff format .`
-- Apply migrations: `uv run alembic upgrade head` (Phase 2+)
 
 ## Folder ownership rules
 - `app/providers/<name>/` — provider-specific clients and adapters. No detector logic here.
@@ -33,7 +34,7 @@ Detector logic consumes normalized events only, never provider-specific payloads
 - `tests/` — mirrors the `app/` layout where useful.
 
 ## Runtime configuration
-`RUNTIME_MODE` env var accepts `build` (default) | `core` | `upgrade` — controls which workers are active at startup. Set in `.env` or the environment before running `python -m app.main_workers`.
+`RUNTIME_MODE` env var accepts `build` (default) | `core` | `upgrade`. It is validated, stored in `settings.runtime_mode`, and logged at startup, but **does not currently gate any workers** — all workers start unconditionally. Reserved for future phased-rollout logic.
 
 ## Style rules
 - Python 3.12. Ruff enforces lint + format.
