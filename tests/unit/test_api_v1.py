@@ -28,6 +28,7 @@ def _chain(result: list) -> MagicMock:
     m.order_by.return_value = m
     m.limit.return_value = m
     m.join.return_value = m
+    m.outerjoin.return_value = m
     m.group_by.return_value = m
     m.subquery.return_value = MagicMock()
     m.all.return_value = result
@@ -136,23 +137,31 @@ def _provider_row(**kw) -> SimpleNamespace:
 
 # ---------------------------------------------------------------------------
 # GET /api/v1/alerts
+# The query now yields 5-tuples: (Alert, SignalCandidate|None, *3 DetectedEvent|None)
 # ---------------------------------------------------------------------------
 
 
+def _alert_tuple(row=None) -> tuple:
+    """Wrap an alert row in the 5-tuple the new join query returns."""
+    return (row or _alert_row(), None, None, None, None)
+
+
 def test_alerts_returns_200():
-    app.dependency_overrides[get_db] = lambda: _db([_alert_row()])
+    app.dependency_overrides[get_db] = lambda: _db([_alert_tuple()])
     assert client.get("/api/v1/alerts").status_code == 200
 
 
 def test_alerts_returns_list():
-    app.dependency_overrides[get_db] = lambda: _db([_alert_row(), _alert_row(id=2)])
+    app.dependency_overrides[get_db] = lambda: _db(
+        [_alert_tuple(), _alert_tuple(_alert_row(id=2))]
+    )
     data = client.get("/api/v1/alerts").json()
     assert isinstance(data, list)
     assert len(data) == 2
 
 
 def test_alerts_response_has_expected_fields():
-    app.dependency_overrides[get_db] = lambda: _db([_alert_row()])
+    app.dependency_overrides[get_db] = lambda: _db([_alert_tuple()])
     item = client.get("/api/v1/alerts").json()[0]
     assert item["ticker"] == "AAPL"
     assert item["direction"] == "bullish"
@@ -161,7 +170,7 @@ def test_alerts_response_has_expected_fields():
 
 
 def test_alerts_sent_only_applies_filter():
-    db = _db([_alert_row()])
+    db = _db([_alert_tuple()])
     app.dependency_overrides[get_db] = lambda: db
     client.get("/api/v1/alerts?sent_only=true")
     # sent_only=True adds a filter call beyond the base query
@@ -169,14 +178,14 @@ def test_alerts_sent_only_applies_filter():
 
 
 def test_alerts_sent_only_false_skips_sent_filter():
-    db = _db([_alert_row(sent_at=None)])
+    db = _db([_alert_tuple(_alert_row(sent_at=None))])
     app.dependency_overrides[get_db] = lambda: db
     resp = client.get("/api/v1/alerts?sent_only=false")
     assert resp.status_code == 200
 
 
 def test_alerts_ticker_filter_applies():
-    db = _db([_alert_row(ticker="MSFT")])
+    db = _db([_alert_tuple(_alert_row(ticker="MSFT"))])
     app.dependency_overrides[get_db] = lambda: db
     resp = client.get("/api/v1/alerts?ticker=msft")
     assert resp.status_code == 200
