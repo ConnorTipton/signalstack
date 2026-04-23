@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.alerts.formatter import AlertFormatter
-from app.alerts.worker import _MAX_RETRIES, AlertWorker
+from app.alerts.worker import _CIRCUIT_OPEN_THRESHOLD, _MAX_RETRIES, AlertWorker
 from app.db.models.execution import Alert
 from app.db.models.signals import SignalCandidate
 
@@ -250,6 +250,59 @@ def test_run_once_no_dry_run_prefix_when_false():
 
     assert len(sent) == 1
     assert not sent[0].startswith("[DRY RUN]")
+
+
+# ---------------------------------------------------------------------------
+# Circuit breaker
+# ---------------------------------------------------------------------------
+
+
+def test_circuit_opens_after_threshold_consecutive_failures():
+    telegram = MagicMock()
+    telegram.send_message.side_effect = RuntimeError("timeout")
+
+    w = AlertWorker(telegram_client=telegram)
+    now = _T0
+
+    for _ in range(_CIRCUIT_OPEN_THRESHOLD):
+        alert = MagicMock(spec=Alert)
+        alert.send_attempts = 0
+        alert.ticker = "AAPL"
+        alert.grade = "A"
+        w._send(alert, now)
+
+    assert w._circuit_open_until is not None
+    assert w._circuit_open_until > now
+
+
+def test_circuit_open_skips_send():
+    telegram = MagicMock()
+    w = AlertWorker(telegram_client=telegram)
+    # Force circuit open
+    w._circuit_open_until = _T0.replace(year=2099)
+
+    alert = MagicMock(spec=Alert)
+    alert.send_attempts = 1
+    alert.ticker = "AAPL"
+    alert.grade = "A"
+    w._send(alert, _T0)
+
+    telegram.send_message.assert_not_called()
+
+
+def test_consecutive_failures_reset_on_success():
+    telegram = MagicMock()
+    w = AlertWorker(telegram_client=telegram)
+    w._consecutive_failures = 3
+
+    alert = MagicMock(spec=Alert)
+    alert.send_attempts = 0
+    alert.ticker = "AAPL"
+    alert.grade = "A"
+    w._send(alert, _T0)
+
+    assert w._consecutive_failures == 0
+    assert w._circuit_open_until is None
 
 
 # ---------------------------------------------------------------------------

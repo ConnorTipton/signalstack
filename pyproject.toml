@@ -22,6 +22,7 @@ dependencies = [
 dev = [
     "pytest>=8.3.4,<9.0",
     "pytest-asyncio>=0.25.0,<0.26",
+    "pytest-cov>=6.0.0,<7.0",
     "ruff>=0.8.4,<0.9",
     "httpx>=0.28.0,<0.29",
     "respx>=0.21.0,<0.22",
@@ -52,6 +53,17 @@ ignore = ["E501", "B008"]  # E501: line length enforced by formatter; B008: stan
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/db/migrations/*", "alembic/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

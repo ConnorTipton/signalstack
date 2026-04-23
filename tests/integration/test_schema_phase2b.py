@@ -15,8 +15,17 @@ from app.db.models.raw_events import (
     RawTradierEvent,
 )
 from app.db.models.signals import DetectedEvent, SignalCandidate
+from app.db.models.symbols import Symbol
 
 pytestmark = pytest.mark.usefixtures("db_engine")
+
+
+def _add_symbol(db_session, ticker: str = "AAPL") -> int:
+    sym = Symbol(ticker=ticker, name=f"{ticker} Inc.")
+    db_session.add(sym)
+    db_session.flush()
+    return sym.id
+
 
 NOW = datetime(2026, 4, 20, 14, 30, 0, tzinfo=UTC)
 TODAY = date(2026, 4, 20)
@@ -105,12 +114,13 @@ def test_llm_news_label_unique_per_article_and_model(db_session):
 
 
 def test_detected_event_insert(db_session):
+    sid = _add_symbol(db_session)
     event = DetectedEvent(
         detector="A",
-        symbol_id=1,
+        symbol_id=sid,
         ticker="AAPL",
         event_type="earnings",
-        polarity="bullish",
+        polarity="positive",
         importance=0.8,
         confidence=0.9,
         source_tier=1,
@@ -121,13 +131,18 @@ def test_detected_event_insert(db_session):
 
 
 def test_detected_event_unique_per_detector_article_symbol(db_session):
+    sid = _add_symbol(db_session)
+    article = NewsArticle(source_name="edgar", source_tier=1, title="Test headline")
+    db_session.add(article)
+    db_session.flush()
+
     db_session.add(
         DetectedEvent(
             detector="A",
-            symbol_id=1,
+            symbol_id=sid,
             ticker="AAPL",
             event_type="earnings",
-            news_article_id=123,
+            news_article_id=article.id,
         )
     )
     db_session.flush()
@@ -136,17 +151,18 @@ def test_detected_event_unique_per_detector_article_symbol(db_session):
         db_session,
         DetectedEvent(
             detector="A",
-            symbol_id=1,
+            symbol_id=sid,
             ticker="AAPL",
             event_type="guidance",
-            news_article_id=123,
+            news_article_id=article.id,
         ),
     )
 
 
 def test_signal_candidate_insert(db_session):
+    sid = _add_symbol(db_session)
     candidate = SignalCandidate(
-        symbol_id=1,
+        symbol_id=sid,
         ticker="AAPL",
         score=83.5,
         news_score=30.0,
@@ -163,11 +179,16 @@ def test_signal_candidate_insert(db_session):
 
 
 def test_signal_candidate_unique_per_news_event(db_session):
+    sid = _add_symbol(db_session)
+    event = DetectedEvent(detector="A", symbol_id=sid, ticker="AAPL")
+    db_session.add(event)
+    db_session.flush()
+
     db_session.add(
         SignalCandidate(
-            symbol_id=1,
+            symbol_id=sid,
             ticker="AAPL",
-            news_event_id=456,
+            news_event_id=event.id,
             status="promoted",
         )
     )
@@ -176,9 +197,9 @@ def test_signal_candidate_unique_per_news_event(db_session):
     _assert_duplicate_rejected(
         db_session,
         SignalCandidate(
-            symbol_id=1,
+            symbol_id=sid,
             ticker="AAPL",
-            news_event_id=456,
+            news_event_id=event.id,
             status="promoted",
         ),
     )
@@ -188,8 +209,9 @@ def test_signal_candidate_unique_per_news_event(db_session):
 
 
 def test_alert_insert(db_session):
+    sid = _add_symbol(db_session)
     alert = Alert(
-        symbol_id=1,
+        symbol_id=sid,
         ticker="AAPL",
         direction="bullish",
         score=83.5,
@@ -206,10 +228,15 @@ def test_alert_insert(db_session):
 
 
 def test_alert_unique_per_signal_candidate(db_session):
+    sid = _add_symbol(db_session)
+    candidate = SignalCandidate(symbol_id=sid, ticker="AAPL", status="promoted")
+    db_session.add(candidate)
+    db_session.flush()
+
     db_session.add(
         Alert(
-            signal_candidate_id=789,
-            symbol_id=1,
+            signal_candidate_id=candidate.id,
+            symbol_id=sid,
             ticker="AAPL",
             direction="bullish",
             score=83.5,
@@ -220,8 +247,8 @@ def test_alert_unique_per_signal_candidate(db_session):
     _assert_duplicate_rejected(
         db_session,
         Alert(
-            signal_candidate_id=789,
-            symbol_id=1,
+            signal_candidate_id=candidate.id,
+            symbol_id=sid,
             ticker="AAPL",
             direction="bullish",
             score=83.5,
@@ -230,8 +257,9 @@ def test_alert_unique_per_signal_candidate(db_session):
 
 
 def test_paper_order_insert(db_session):
+    sid = _add_symbol(db_session)
     order = PaperOrder(
-        symbol_id=1,
+        symbol_id=sid,
         ticker="AAPL",
         contract_symbol="AAPL260425C00200000",
         option_type="call",
@@ -248,10 +276,15 @@ def test_paper_order_insert(db_session):
 
 
 def test_paper_order_unique_per_alert(db_session):
+    sid = _add_symbol(db_session)
+    alert = Alert(symbol_id=sid, ticker="AAPL", direction="bullish", score=83.5)
+    db_session.add(alert)
+    db_session.flush()
+
     db_session.add(
         PaperOrder(
-            alert_id=321,
-            symbol_id=1,
+            alert_id=alert.id,
+            symbol_id=sid,
             ticker="AAPL",
             contract_symbol="AAPL260425C00200000",
             option_type="call",
@@ -268,8 +301,8 @@ def test_paper_order_unique_per_alert(db_session):
     _assert_duplicate_rejected(
         db_session,
         PaperOrder(
-            alert_id=321,
-            symbol_id=1,
+            alert_id=alert.id,
+            symbol_id=sid,
             ticker="AAPL",
             contract_symbol="AAPL260425C00200000",
             option_type="call",
@@ -284,8 +317,9 @@ def test_paper_order_unique_per_alert(db_session):
 
 
 def test_paper_position_insert(db_session):
+    sid = _add_symbol(db_session)
     pos = PaperPosition(
-        symbol_id=1,
+        symbol_id=sid,
         ticker="AAPL",
         contract_symbol="AAPL260425C00200000",
         option_type="call",
@@ -301,8 +335,9 @@ def test_paper_position_insert(db_session):
 
 
 def test_position_event_insert(db_session):
+    sid = _add_symbol(db_session)
     pos = PaperPosition(
-        symbol_id=1,
+        symbol_id=sid,
         ticker="AAPL",
         contract_symbol="AAPL260425C00200000",
         option_type="call",

@@ -15,6 +15,7 @@ from app.signals.scoring import (
     _GRADE_A_MIN,
     _GRADE_B_MIN,
     _GRADE_C_MIN,
+    _PROVIDER_TIER_WEIGHT,
     _STRONG_PRICE_CONF,
     _WEAK_PROVIDER_THRESHOLD,
     ScoringInput,
@@ -534,6 +535,45 @@ def test_run_once_writes_rejected_candidate_when_no_evidence():
     added: SignalCandidate = db.add.call_args[0][0]
     assert added.status == "rejected"
     assert added.rejection_reason is not None
+
+
+# ---------------------------------------------------------------------------
+# _get_provider_confidence — tier weighting
+# ---------------------------------------------------------------------------
+
+
+def test_get_provider_confidence_applies_tradier_weight():
+    """Tradier (tier 1) multiplier is 1.0 — result equals raw confidence."""
+    worker = ScoringWorker(market_provider="tradier")
+    row = MagicMock()
+    row.provider_confidence = 0.80
+
+    db = _db_mock()
+    db.query.return_value.filter.return_value.order_by.return_value.first.return_value = row
+
+    result = worker._get_provider_confidence(db)
+    assert result == pytest.approx(0.80 * _PROVIDER_TIER_WEIGHT["tradier"])
+
+
+def test_get_provider_confidence_applies_alpaca_weight():
+    """Alpaca (tier 2 fallback) multiplier is 0.75 — result is discounted."""
+    worker = ScoringWorker(market_provider="alpaca")
+    row = MagicMock()
+    row.provider_confidence = 0.80
+
+    db = _db_mock()
+    db.query.return_value.filter.return_value.order_by.return_value.first.return_value = row
+
+    result = worker._get_provider_confidence(db)
+    assert result == pytest.approx(0.80 * _PROVIDER_TIER_WEIGHT["alpaca"])
+
+
+def test_get_provider_confidence_returns_zero_when_no_healthy_row():
+    worker = ScoringWorker(market_provider="tradier")
+    db = _db_mock()
+    db.query.return_value.filter.return_value.order_by.return_value.first.return_value = None
+
+    assert worker._get_provider_confidence(db) == 0.0
 
 
 # ---------------------------------------------------------------------------

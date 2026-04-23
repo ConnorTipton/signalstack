@@ -45,7 +45,17 @@ jobs:
       - name: Ruff format check
         run: uv run ruff format --check .
 
-      - name: Pytest
+      - name: Apply migrations
         env:
           DATABASE_URL: postgresql+psycopg://signalstack:signalstack@localhost:5432/signalstack
-        run: uv run pytest
+        run: uv run alembic upgrade head
+
+      - name: Alembic model drift check
+        env:
+          DATABASE_URL: postgresql+psycopg://signalstack:signalstack@localhost:5432/signalstack
+        run: uv run alembic check
+
+      - name: Pytest with coverage
+        env:
+          DATABASE_URL: postgresql+psycopg://signalstack:signalstack@localhost:5432/signalstack
+        run: uv run pytest --cov=app --cov-report=xml --cov-fail-under=60

@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.alerts.formatter import AlertFormatter
@@ -30,6 +31,9 @@ log = logging.getLogger(__name__)
 _DEFAULT_INTERVAL = 10.0
 _DEFAULT_BATCH = 50
 _MAX_RETRIES = 3
+_BACKOFF_BASE_SECONDS = 30
+_CIRCUIT_OPEN_THRESHOLD = 5
+_CIRCUIT_OPEN_SECONDS = 600
 
 
 class AlertWorker:
@@ -69,6 +73,8 @@ class AlertWorker:
         self._batch_size = batch_size
         self._max_retries = max_retries
         self._dry_run = dry_run
+        self._consecutive_failures = 0
+        self._circuit_open_until: datetime | None = None
 
     async def run(self) -> None:
         """Main loop: process alerts, sleep, repeat until cancelled."""
@@ -125,15 +131,40 @@ class AlertWorker:
                 alert.ticker,
             )
             return
+
+        if self._circuit_open_until is not None and now < self._circuit_open_until:
+            log.warning(
+                "AlertWorker: circuit open until %s — skipping send for %s",
+                self._circuit_open_until.isoformat(),
+                alert.ticker,
+            )
+            return
+
         try:
             text = AlertFormatter.render(alert)
             self._telegram.send_message(text)
             alert.sent_at = now
             alert.send_attempts = (alert.send_attempts or 0) + 1
+            if self._consecutive_failures > 0:
+                log.info("AlertWorker: circuit closed — Telegram healthy again")
+            self._consecutive_failures = 0
+            self._circuit_open_until = None
             log.info("AlertWorker: sent alert for %s (grade=%s)", alert.ticker, alert.grade)
         except Exception as exc:
-            alert.send_attempts = (alert.send_attempts or 0) + 1
+            attempt = (alert.send_attempts or 0) + 1
+            alert.send_attempts = attempt
             alert.last_error = str(exc)[:500]
+            delay = _BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
+            alert.next_retry_at = now + timedelta(seconds=delay)
+            self._consecutive_failures += 1
+            if self._consecutive_failures >= _CIRCUIT_OPEN_THRESHOLD:
+                self._circuit_open_until = now + timedelta(seconds=_CIRCUIT_OPEN_SECONDS)
+                log.error(
+                    "AlertWorker: circuit opened after %d consecutive failures — "
+                    "pausing Telegram sends for %ds",
+                    self._consecutive_failures,
+                    _CIRCUIT_OPEN_SECONDS,
+                )
             log.warning("AlertWorker: send failed for %s: %s", alert.ticker, exc)
 
     # ------------------------------------------------------------------
@@ -166,13 +197,15 @@ class AlertWorker:
         db: Session,
         max_retries: int = _MAX_RETRIES,
     ) -> list[Alert]:
-        """Return Alert rows that failed to send and are eligible for retry."""
+        """Return Alert rows that failed to send and whose backoff window has elapsed."""
+        now = datetime.now(UTC)
         return (
             db.query(Alert)
             .filter(
                 Alert.sent_at.is_(None),
                 Alert.send_attempts >= 1,
                 Alert.send_attempts < max_retries,
+                or_(Alert.next_retry_at.is_(None), Alert.next_retry_at <= now),
             )
             .all()
         )

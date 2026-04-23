@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime
 
 from app.db.models.execution import Alert, DailyMetric, PaperOrder, PaperPosition
 from app.db.models.signals import SignalCandidate
+from app.db.models.symbols import Symbol
 from app.execution.metrics_worker import DailyMetricsWorker
 
 _DAY = date(2026, 4, 22)
@@ -11,9 +12,14 @@ _NOW = datetime(2026, 4, 22, 15, 0, tzinfo=UTC)
 
 
 def test_daily_metrics_worker_populates_counts(db_session):
+    sym = Symbol(ticker="AAPL", name="Apple Inc.")
+    db_session.add(sym)
+    db_session.flush()
+    sid = sym.id
+
     db_session.add(
         SignalCandidate(
-            symbol_id=1,
+            symbol_id=sid,
             ticker="AAPL",
             score=80.0,
             status="promoted",
@@ -22,7 +28,7 @@ def test_daily_metrics_worker_populates_counts(db_session):
     )
     db_session.add(
         Alert(
-            symbol_id=1,
+            symbol_id=sid,
             ticker="AAPL",
             direction="bullish",
             score=80.0,
@@ -32,7 +38,7 @@ def test_daily_metrics_worker_populates_counts(db_session):
     )
     db_session.add(
         PaperOrder(
-            symbol_id=1,
+            symbol_id=sid,
             ticker="AAPL",
             contract_symbol="AAPL260501C00190000",
             option_type="call",
@@ -44,7 +50,7 @@ def test_daily_metrics_worker_populates_counts(db_session):
     )
     db_session.add(
         PaperPosition(
-            symbol_id=1,
+            symbol_id=sid,
             ticker="AAPL",
             contract_symbol="AAPL260501C00190000",
             option_type="call",

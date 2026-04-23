@@ -1,6 +1,19 @@
 from datetime import date, datetime
 
-from sqlalchemy import BigInteger, Date, DateTime, Index, Integer, Numeric, String, Text, func, text
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,11 +35,17 @@ class DetectedEvent(Base):
             sqlite_where=text("news_article_id IS NOT NULL"),
         ),
         Index("ix_detected_events_detected_at", "detected_at"),
+        CheckConstraint("detector IN ('A', 'B', 'C')", name="ck_detected_events_detector"),
+        CheckConstraint(
+            "polarity IN ('bullish', 'neutral', 'bearish')", name="ck_detected_events_polarity"
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     detector: Mapped[str] = mapped_column(String(1), nullable=False)
-    symbol_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    symbol_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("symbols.id"), nullable=False, index=True
+    )
     ticker: Mapped[str] = mapped_column(String(10), nullable=False)
     event_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     polarity: Mapped[str | None] = mapped_column(String(10), nullable=True)
@@ -34,8 +53,12 @@ class DetectedEvent(Base):
     confidence: Mapped[float | None] = mapped_column(Numeric(4, 3), nullable=True)
     source_tier: Mapped[int | None] = mapped_column(Integer, nullable=True)
     one_sentence_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    news_article_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    llm_label_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    news_article_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("news_articles.id", ondelete="SET NULL"), nullable=True
+    )
+    llm_label_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("llm_news_labels.id", ondelete="SET NULL"), nullable=True
+    )
     metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     detected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -56,12 +79,20 @@ class SignalCandidate(Base):
         ),
         Index("ix_signal_candidates_status_contract_symbol", "status", "contract_symbol"),
         Index("ix_signal_candidates_created_at", "created_at"),
+        CheckConstraint(
+            "status IN ('pending', 'promoted', 'watch', 'rejected')",
+            name="ck_signal_candidates_status",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    symbol_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    symbol_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("symbols.id"), nullable=False, index=True
+    )
     ticker: Mapped[str] = mapped_column(String(10), nullable=False)
-    news_event_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    news_event_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("detected_events.id", ondelete="SET NULL"), nullable=True
+    )
     price_event_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     options_event_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     score: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)

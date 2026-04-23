@@ -1,7 +1,11 @@
 """Unit tests for worker startup helpers."""
 
+import asyncio
+
+import pytest
+
 from app.db.models.symbols import Symbol
-from app.main_workers import _ensure_db_ready
+from app.main_workers import _ensure_db_ready, _supervised
 
 
 class _Inspector:
@@ -43,6 +47,44 @@ class _Session:
 
     def commit(self):
         self.committed = True
+
+
+# ---------------------------------------------------------------------------
+# _supervised — crash-restart loop
+# ---------------------------------------------------------------------------
+
+
+async def test_supervised_restarts_after_crash():
+    call_count = 0
+
+    async def _flaky():
+        nonlocal call_count
+        call_count += 1
+        raise RuntimeError("boom")
+
+    task = asyncio.create_task(_supervised(_flaky, "test", max_backoff=0.01))
+    await asyncio.sleep(0.1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert call_count >= 3
+
+
+async def test_supervised_cancel_propagates():
+    async def _forever():
+        await asyncio.sleep(1000)
+
+    task = asyncio.create_task(_supervised(_forever, "test"))
+    await asyncio.sleep(0.01)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+# ---------------------------------------------------------------------------
+# _ensure_db_ready
+# ---------------------------------------------------------------------------
 
 
 def test_ensure_db_ready_seeds_only_missing_symbols(monkeypatch):

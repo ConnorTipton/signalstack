@@ -3,8 +3,10 @@ from datetime import date, datetime
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
+    ForeignKey,
     Index,
     Integer,
     Numeric,
@@ -36,8 +38,12 @@ class Alert(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    signal_candidate_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    symbol_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    signal_candidate_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("signal_candidates.id", ondelete="SET NULL"), nullable=True
+    )
+    symbol_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("symbols.id"), nullable=False, index=True
+    )
     ticker: Mapped[str] = mapped_column(String(10), nullable=False)
     direction: Mapped[str] = mapped_column(String(10), nullable=False)
     score: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
@@ -57,6 +63,7 @@ class Alert(Base):
     dry_run: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     send_attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -74,11 +81,21 @@ class PaperOrder(Base):
             sqlite_where=text("alert_id IS NOT NULL"),
         ),
         Index("ix_paper_orders_created_at", "created_at"),
+        CheckConstraint(
+            "status IN ('pending', 'submitted', 'filled', 'cancelled', 'rejected', 'submit_failed')",
+            name="ck_paper_orders_status",
+        ),
+        CheckConstraint("side IN ('buy', 'sell')", name="ck_paper_orders_side"),
+        CheckConstraint("option_type IN ('call', 'put')", name="ck_paper_orders_option_type"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    alert_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    symbol_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    alert_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("alerts.id", ondelete="SET NULL"), nullable=True
+    )
+    symbol_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("symbols.id"), nullable=False, index=True
+    )
     ticker: Mapped[str] = mapped_column(String(10), nullable=False)
     contract_symbol: Mapped[str] = mapped_column(String(30), nullable=False)
     option_type: Mapped[str] = mapped_column(String(4), nullable=False)
@@ -106,12 +123,19 @@ class PaperPosition(Base):
     __table_args__ = (
         Index("ix_paper_positions_opened_at", "opened_at"),
         Index("ix_paper_positions_closed_at", "closed_at"),
+        CheckConstraint("status IN ('open', 'closed')", name="ck_paper_positions_status"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    order_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    alert_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    symbol_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    order_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("paper_orders.id", ondelete="SET NULL"), nullable=True
+    )
+    alert_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("alerts.id", ondelete="SET NULL"), nullable=True
+    )
+    symbol_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("symbols.id"), nullable=False, index=True
+    )
     ticker: Mapped[str] = mapped_column(String(10), nullable=False)
     contract_symbol: Mapped[str] = mapped_column(String(30), nullable=False)
     option_type: Mapped[str] = mapped_column(String(4), nullable=False)

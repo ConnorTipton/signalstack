@@ -69,6 +69,9 @@ _STRONG_PRICE_CONF = 0.70  # used to exempt proxy cap when price is strong
 # News tier → score weight multiplier
 _TIER_FACTOR: dict[int, float] = {1: 1.0, 2: 0.8, 3: 0.5}
 
+# Market data provider tier weight (Tradier=primary, Alpaca=fallback)
+_PROVIDER_TIER_WEIGHT: dict[str, float] = {"tradier": 1.0, "alpaca": 0.75}
+
 # Grade ordering for cap comparisons (higher rank = better grade)
 _GRADE_RANK: dict[str, int] = {"A": 4, "B": 3, "C": 2, "D": 1}
 
@@ -374,7 +377,8 @@ class ScoringWorker:
             .first()
         )
         if row and row.provider_confidence is not None:
-            return float(row.provider_confidence)
+            tier_weight = _PROVIDER_TIER_WEIGHT.get(self._market_provider, 0.5)
+            return float(row.provider_confidence) * tier_weight
         return 0.0
 
     @staticmethod

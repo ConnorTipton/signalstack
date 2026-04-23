@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     telegram_bot_token: str | None = None
     telegram_chat_id: str | None = None
 
+    api_key: str | None = None
+
     alerts_dry_run: bool = True
     market_data_max_age_minutes: int = 15
 
