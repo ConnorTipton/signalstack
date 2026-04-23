@@ -1,7 +1,10 @@
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import router as v1_router
 from app.core.config import settings
@@ -14,6 +17,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(v1_router)
+
+_WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+if _WEB_DIR.is_dir():
+    app.mount("/web", StaticFiles(directory=_WEB_DIR, html=True), name="web")
+
+    @app.get("/")
+    def _root() -> RedirectResponse:
+        return RedirectResponse(url="/web/SignalStack.html")
 
 
 @app.get("/health")

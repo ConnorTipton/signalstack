@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.alerts.formatter import AlertFormatter
 from app.alerts.telegram import TelegramClient
 from app.db.models.execution import Alert
+from app.db.models.provider import ProviderHealth
 from app.db.models.signals import DetectedEvent, SignalCandidate
 from app.db.session import SessionLocal
 
@@ -78,18 +79,40 @@ class AlertWorker:
 
     async def run(self) -> None:
         """Main loop: process alerts, sleep, repeat until cancelled."""
+        self._last_success_at: datetime | None = None
         while True:
             t0 = datetime.now(UTC)
             try:
                 count = await asyncio.to_thread(self._run_once_in_session)
                 if count:
                     log.info("AlertWorker: created %d new alert(s)", count)
+                self._last_success_at = datetime.now(UTC)
+                await asyncio.to_thread(self._record_health)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
                 log.warning("AlertWorker cycle error: %s", exc)
+                await asyncio.to_thread(self._record_health, str(exc))
             elapsed = (datetime.now(UTC) - t0).total_seconds()
             await asyncio.sleep(max(0.0, self._interval - elapsed))
+
+    def _record_health(self, error: str | None = None) -> None:
+        telegram_configured = self._telegram is not None
+        is_healthy = telegram_configured and self._consecutive_failures == 0
+        confidence = 1.0 if is_healthy else max(0.0, 1.0 - 0.2 * self._consecutive_failures)
+        with SessionLocal() as db:
+            db.add(
+                ProviderHealth(
+                    checked_at=datetime.now(UTC),
+                    provider_name="telegram",
+                    is_healthy=is_healthy,
+                    provider_confidence=round(confidence, 3),
+                    last_success_at=self._last_success_at,
+                    consecutive_failures=self._consecutive_failures,
+                    error_message=error if error else (None if telegram_configured else "Telegram not configured"),
+                )
+            )
+            db.commit()
 
     def _run_once_in_session(self) -> int:
         with SessionLocal() as db:

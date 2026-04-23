@@ -22,6 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models.news import LlmNewsLabel, NewsArticle
+from app.db.models.provider import ProviderHealth
 from app.db.session import SessionLocal
 from app.llm.anthropic_client import AnthropicClient
 from app.llm.prefilter import prefilter_article
@@ -64,14 +65,41 @@ class LabelWorker:
         self._client = client
         self._interval = interval_seconds
         self._batch_size = batch_size
+        self._consecutive_failures = 0
+        self._last_success_at: datetime | None = None
 
     async def run(self) -> None:
         """Main loop: label a batch of articles, sleep, repeat until cancelled."""
         while True:
             cycle_start = datetime.now(UTC)
-            await self._process_batch()
+            try:
+                await self._process_batch()
+                self._consecutive_failures = 0
+                self._last_success_at = datetime.now(UTC)
+                await asyncio.to_thread(self._record_health, is_healthy=True)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                self._consecutive_failures += 1
+                await asyncio.to_thread(self._record_health, is_healthy=False, error=str(exc))
             elapsed = (datetime.now(UTC) - cycle_start).total_seconds()
             await asyncio.sleep(max(0.0, self._interval - elapsed))
+
+    def _record_health(self, *, is_healthy: bool, error: str | None = None) -> None:
+        confidence = 1.0 if is_healthy else max(0.0, 1.0 - 0.2 * self._consecutive_failures)
+        with SessionLocal() as db:
+            db.add(
+                ProviderHealth(
+                    checked_at=datetime.now(UTC),
+                    provider_name="anthropic",
+                    is_healthy=is_healthy,
+                    provider_confidence=round(confidence, 3),
+                    last_success_at=self._last_success_at,
+                    consecutive_failures=self._consecutive_failures,
+                    error_message=error,
+                )
+            )
+            db.commit()
 
     async def _process_batch(self) -> None:
         articles = await asyncio.to_thread(self._fetch_unlabeled, self._batch_size)

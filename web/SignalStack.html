@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SignalStack V1 — Signal Review Cockpit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { height: 100%; }
+  body {
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #FAF7F1;
+    color: #1F1F1F;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #E5E2D8; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #C8C4BC; }
+  button { font-family: "IBM Plex Sans", sans-serif; }
+  input { font-family: "IBM Plex Sans", sans-serif; }
+
+  #tweaks-panel {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 240px;
+    background: #fff;
+    border: 1px solid #E5E2D8;
+    border-radius: 10px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+    z-index: 9999;
+    padding: 16px;
+  }
+  #tweaks-panel.open { display: block; }
+  .tweak-section-label { font-size: 11px; color: #687388; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; margin-top: 12px; }
+  .tweak-section-label:first-child { margin-top: 0; }
+  .tweak-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tweak-chip { padding: 4px 10px; border: 1px solid #E5E2D8; border-radius: 20px; font-size: 11px; cursor: pointer; background: #fff; color: #687388; transition: all 0.1s; font-family: inherit; }
+  .tweak-chip.active { background: #1F1F1F; color: #fff; border-color: #1F1F1F; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="signalstack/api.js"></script>
+<script type="text/babel" src="signalstack/Shared.jsx"></script>
+<script type="text/babel" src="signalstack/Sidebar.jsx"></script>
+<script type="text/babel" src="signalstack/Header.jsx"></script>
+<script type="text/babel" src="signalstack/Overview.jsx"></script>
+<script type="text/babel" src="signalstack/AlertDetail.jsx"></script>
+<script type="text/babel" src="signalstack/Replay.jsx"></script>
+<script type="text/babel" src="signalstack/Providers.jsx"></script>
+<script type="text/babel" src="signalstack/Performance.jsx"></script>
+<script type="text/babel" src="signalstack/Alerts.jsx"></script>
+<script type="text/babel">
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "density": "comfortable",
+  "bgTone": "warm",
+  "tableFont": "mono"
+}/*EDITMODE-END*/;
+
+function App() {
+  const savedScreen = (() => {
+    try { return JSON.parse(localStorage.getItem("ss_v1_screen") || "null"); } catch { return null; }
+  })();
+  const [screen, setScreen] = React.useState(savedScreen || "overview");
+  const { data: alerts, live } = useAutoRefresh(() => SS_API.alerts(), [], 30000);
+  const [selectedAlert, setSelectedAlert] = React.useState(null);
+  const [tweaks, setTweaks] = React.useState(TWEAK_DEFAULTS);
+  const [tweaksOpen, setTweaksOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    localStorage.setItem("ss_v1_screen", JSON.stringify(screen));
+  }, [screen]);
+
+  React.useEffect(() => {
+    const handler = (e) => {
+      if (e.data?.type === "__activate_edit_mode") setTweaksOpen(true);
+      if (e.data?.type === "__deactivate_edit_mode") setTweaksOpen(false);
+    };
+    window.addEventListener("message", handler);
+    window.parent.postMessage({ type: "__edit_mode_available" }, "*");
+    return () => window.removeEventListener("message", handler);
+  }, []);
+
+  const applyTweak = (key, value) => {
+    const next = { ...tweaks, [key]: value };
+    setTweaks(next);
+    window.parent.postMessage({ type: "__edit_mode_set_keys", edits: { [key]: value } }, "*");
+    if (key === "bgTone") {
+      const bg = { warm: "#FAF7F1", neutral: "#F8F8F8", cool: "#F5F7FA" }[value] || "#FAF7F1";
+      document.body.style.background = bg;
+    }
+  };
+
+  const handleNav = (id) => setScreen(id);
+  const handleSelectAlert = (alert) => { setSelectedAlert(alert); };
+
+  const renderScreen = () => {
+    switch (screen) {
+      case "overview":     return <Overview onNav={handleNav} onSelectAlert={handleSelectAlert} />;
+      case "alerts":       return <Alerts onNav={handleNav} onSelectAlert={handleSelectAlert} />;
+      case "alert-detail": return <AlertDetail alert={selectedAlert} />;
+      case "positions":    return <Performance />;
+      case "performance":  return <Performance />;
+      case "providers":    return <Providers />;
+      case "replay":       return <Replay />;
+      case "source-trace": return <SourceTrace />;
+      case "settings":     return <Settings />;
+      default:             return <Overview onNav={handleNav} onSelectAlert={handleSelectAlert} />;
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+      <Sidebar active={screen} onNav={handleNav} />
+
+      <div style={{ marginLeft: 160, flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+        {/* Paper-only badge removed — shown in header status bar */}
+
+        <Header screen={screen} live={live} />
+
+        <main style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          background: "#FAF7F1",
+        }}>
+          {renderScreen()}
+        </main>
+      </div>
+
+      {/* Tweaks */}
+      <div id="tweaks-panel" className={tweaksOpen ? "open" : ""}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#1F1F1F", marginBottom: 12, borderBottom: "1px solid #E5E2D8", paddingBottom: 8 }}>Tweaks</div>
+
+        <div className="tweak-section-label">Background tone</div>
+        <div className="tweak-row">
+          {["warm", "neutral", "cool"].map(t => (
+            <button key={t} className={`tweak-chip ${tweaks.bgTone === t ? "active" : ""}`}
+              onClick={() => applyTweak("bgTone", t)}>{t}</button>
+          ))}
+        </div>
+
+        <div className="tweak-section-label">Density</div>
+        <div className="tweak-row">
+          {["compact", "comfortable", "spacious"].map(d => (
+            <button key={d} className={`tweak-chip ${tweaks.density === d ? "active" : ""}`}
+              onClick={() => applyTweak("density", d)}>{d}</button>
+          ))}
+        </div>
+
+        <div className="tweak-section-label">Data font</div>
+        <div className="tweak-row">
+          {["mono", "sans"].map(f => (
+            <button key={f} className={`tweak-chip ${tweaks.tableFont === f ? "active" : ""}`}
+              onClick={() => applyTweak("tableFont", f)}>{f}</button>
+          ))}
+        </div>
+
+        <div className="tweak-section-label">Quick nav</div>
+        <div className="tweak-row" style={{ flexDirection: "column", gap: 4 }}>
+          {[["overview","Overview"],["alert-detail","Alert Detail"],["replay","Replay"],["providers","Providers"],["performance","Performance"]].map(([id, label]) => (
+            <button key={id} className={`tweak-chip ${screen === id ? "active" : ""}`}
+              style={{ textAlign: "left" }}
+              onClick={() => handleNav(id)}>{label}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
