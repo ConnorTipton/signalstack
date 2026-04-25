@@ -86,3 +86,19 @@ def write_sensitivity(mode: SensitivityMode) -> None:
         with contextlib.suppress(FileNotFoundError):
             os.unlink(tmp_path)
         raise
+
+
+_GRADES_BY_MODE: dict[SensitivityMode, frozenset[str]] = {
+    "high": frozenset({"A"}),
+    "medium": frozenset({"A", "B"}),
+    "low": frozenset({"A", "B", "C"}),
+}
+
+
+def sensitivity_mode_to_grades(mode: SensitivityMode) -> frozenset[str]:
+    """Map a sensitivity mode to the set of alert grades it permits.
+
+    D-grade is never alerted in any mode — that's already enforced
+    upstream by the cap logic in app/signals/scoring.py.
+    """
+    return _GRADES_BY_MODE[mode]

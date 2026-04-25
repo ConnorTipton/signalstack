@@ -93,3 +93,21 @@ def test_round_trip(state_file: Path) -> None:
     for mode in ("high", "medium", "low"):
         desktop_state.write_sensitivity(mode)
         assert desktop_state.read_sensitivity() == mode
+
+
+def test_sensitivity_to_grades_high() -> None:
+    assert desktop_state.sensitivity_mode_to_grades("high") == frozenset({"A"})
+
+
+def test_sensitivity_to_grades_medium() -> None:
+    assert desktop_state.sensitivity_mode_to_grades("medium") == frozenset({"A", "B"})
+
+
+def test_sensitivity_to_grades_low() -> None:
+    assert desktop_state.sensitivity_mode_to_grades("low") == frozenset({"A", "B", "C"})
+
+
+def test_sensitivity_to_grades_d_never_alerts() -> None:
+    """D-grade should never appear in any sensitivity mode's allowed set."""
+    for mode in ("high", "medium", "low"):
+        assert "D" not in desktop_state.sensitivity_mode_to_grades(mode)
