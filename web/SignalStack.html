@@ -60,6 +60,8 @@
 <script type="text/babel" src="signalstack/Providers.jsx"></script>
 <script type="text/babel" src="signalstack/Performance.jsx"></script>
 <script type="text/babel" src="signalstack/Alerts.jsx"></script>
+<script type="text/babel" src="signalstack/Control.jsx"></script>
+<script type="text/babel" src="signalstack/Settings.jsx"></script>
 <script type="text/babel">
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -115,6 +117,7 @@ function App() {
       case "providers":    return <Providers />;
       case "replay":       return <Replay />;
       case "source-trace": return <SourceTrace />;
+      case "control":      return <Control />;
       case "settings":     return <Settings />;
       default:             return <Overview onNav={handleNav} onSelectAlert={handleSelectAlert} />;
     }
