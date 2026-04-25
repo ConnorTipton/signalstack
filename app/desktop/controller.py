@@ -101,7 +101,8 @@ class SubprocessController:
             self._proc = None
 
     def status(self) -> Status:
-        proc = self._proc
+        with self._lock:
+            proc = self._proc
         if proc is None:
             return "stopped"
         if proc.poll() is None:
@@ -109,7 +110,8 @@ class SubprocessController:
         return "stopped"
 
     def _read_output(self, proc: subprocess.Popen[str]) -> None:
-        assert proc.stdout is not None
+        if proc.stdout is None:
+            return
         try:
             for line in proc.stdout:
                 self._log.append(f"[{self._name}] {line.rstrip()}")
