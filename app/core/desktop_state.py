@@ -20,7 +20,7 @@ from typing import Literal
 log = logging.getLogger(__name__)
 
 SensitivityMode = Literal["high", "medium", "low"]
-_VALID_MODES: frozenset[str] = frozenset({"high", "medium", "low"})
+VALID_MODES: frozenset[str] = frozenset({"high", "medium", "low"})
 _DEFAULT_MODE: SensitivityMode = "medium"
 
 STATE_FILE: Path = Path.home() / ".signalstack" / "desktop_state.json"
@@ -46,7 +46,7 @@ def read_sensitivity() -> SensitivityMode:
         return _DEFAULT_MODE
 
     mode = data.get("sensitivity_mode")
-    if mode in _VALID_MODES:
+    if mode in VALID_MODES:
         return mode  # type: ignore[return-value]
 
     if mode is not None:
@@ -65,7 +65,7 @@ def write_sensitivity(mode: SensitivityMode) -> None:
     have validated already, but this is a defensive check so a bad
     write never reaches disk.
     """
-    if mode not in _VALID_MODES:
+    if mode not in VALID_MODES:
         raise ValueError(f"invalid sensitivity mode: {mode!r}")
 
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)

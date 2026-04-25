@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 
 from app.core.desktop_state import (
+    VALID_MODES,
     SensitivityMode,
     read_sensitivity,
     write_sensitivity,
@@ -54,7 +55,7 @@ class JsApi:
         return read_sensitivity()
 
     def set_sensitivity(self, mode: str) -> dict[str, object]:
-        if mode not in ("high", "medium", "low"):
+        if mode not in VALID_MODES:
             return {
                 "ok": False,
                 "error": f"invalid sensitivity mode: {mode!r}",
