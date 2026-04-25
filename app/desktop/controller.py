@@ -101,6 +101,9 @@ class SubprocessController:
             self._proc = None
 
     def status(self) -> Status:
+        # Lock released before poll() — holding it across a syscall would deadlock
+        # against stop(), which also acquires the lock. The proc reference is stable
+        # once captured (Python reference counting keeps the Popen alive).
         with self._lock:
             proc = self._proc
         if proc is None:
