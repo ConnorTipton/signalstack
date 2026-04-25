@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { id: "providers", label: "Providers", icon: "⬡" },
   { id: "replay", label: "Replay", icon: "↺" },
   { id: "source-trace", label: "Source Trace", icon: "⌖" },
+  { id: "control", label: "Control", icon: "⏻" },
   { id: "settings", label: "Settings", icon: "⚙" },
 ];
 
