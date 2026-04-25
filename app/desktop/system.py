@@ -90,7 +90,7 @@ class SystemController:
                 )
 
         # Step 4: Postgres
-        if not postgres_running():
+        if not postgres_running(compose_dir=self._repo_root):
             self._log.append("[system] starting Postgres…")
             if not start_postgres(compose_dir=self._repo_root):
                 return StartResult(ok=False, error="Postgres failed to start.")
@@ -112,7 +112,7 @@ class SystemController:
     def status(self) -> dict[str, str]:
         return {
             "docker": "running" if docker_running() else "stopped",
-            "postgres": "running" if postgres_running() else "stopped",
+            "postgres": "running" if postgres_running(compose_dir=self._repo_root) else "stopped",
             "workers": self._workers.status(),
             "api": self._api.status(),
         }
