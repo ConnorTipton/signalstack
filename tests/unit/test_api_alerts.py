@@ -1,7 +1,6 @@
 """Unit tests for GET /api/v1/alerts and GET /api/v1/alerts/{id}."""
 
-from datetime import UTC, date, datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,28 +8,27 @@ from fastapi.testclient import TestClient
 from app.api.v1.alerts import DetectorEvidenceOut, _build_evidence
 from app.db.models.signals import DetectedEvent, SignalCandidate
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
 def _candidate(**kwargs) -> MagicMock:
-    defaults = dict(
-        news_score=24.0,
-        price_score=21.0,
-        options_score=18.0,
-        liquidity_score=13.0,
-        data_confidence_score=10.0,
-        provider_confidence=0.91,
-        contract_bid=4.85,
-        contract_ask=5.27,
-        contract_spread_pct=0.08,
-        contract_oi=2430,
-        contract_volume=811,
-        contract_selection_reason="ITM, tight spread",
-        contract_rejection_json=[{"symbol": "205C", "reason": "too deep ITM"}],
-    )
+    defaults = {
+        "news_score": 24.0,
+        "price_score": 21.0,
+        "options_score": 18.0,
+        "liquidity_score": 13.0,
+        "data_confidence_score": 10.0,
+        "provider_confidence": 0.91,
+        "contract_bid": 4.85,
+        "contract_ask": 5.27,
+        "contract_spread_pct": 0.08,
+        "contract_oi": 2430,
+        "contract_volume": 811,
+        "contract_selection_reason": "ITM, tight spread",
+        "contract_rejection_json": [{"symbol": "205C", "reason": "too deep ITM"}],
+    }
     defaults.update(kwargs)
     c = MagicMock(spec=SignalCandidate)
     for k, v in defaults.items():
@@ -39,14 +37,14 @@ def _candidate(**kwargs) -> MagicMock:
 
 
 def _news_event(**kwargs) -> MagicMock:
-    defaults = dict(
-        one_sentence_summary="Apple raises guidance.",
-        event_type="earnings",
-        polarity="positive",
-        confidence=0.88,
-        importance=0.80,
-        source_tier=1,
-    )
+    defaults = {
+        "one_sentence_summary": "Apple raises guidance.",
+        "event_type": "earnings",
+        "polarity": "positive",
+        "confidence": 0.88,
+        "importance": 0.80,
+        "source_tier": 1,
+    }
     defaults.update(kwargs)
     e = MagicMock(spec=DetectedEvent)
     for k, v in defaults.items():
@@ -55,7 +53,7 @@ def _news_event(**kwargs) -> MagicMock:
 
 
 def _price_event(**kwargs) -> MagicMock:
-    defaults = dict(event_type="vwap_reclaim", confidence=0.82, polarity="positive")
+    defaults = {"event_type": "vwap_reclaim", "confidence": 0.82, "polarity": "positive"}
     defaults.update(kwargs)
     e = MagicMock(spec=DetectedEvent)
     for k, v in defaults.items():
@@ -64,11 +62,11 @@ def _price_event(**kwargs) -> MagicMock:
 
 
 def _options_event(**kwargs) -> MagicMock:
-    defaults = dict(
-        event_type="elevated_call_volume",
-        confidence=0.76,
-        metadata_json={"relative_activity": 2.4},
-    )
+    defaults = {
+        "event_type": "elevated_call_volume",
+        "confidence": 0.76,
+        "metadata_json": {"relative_activity": 2.4},
+    }
     defaults.update(kwargs)
     e = MagicMock(spec=DetectedEvent)
     for k, v in defaults.items():

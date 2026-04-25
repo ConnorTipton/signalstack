@@ -131,16 +131,16 @@ def _fetch_alerts(
     alert_id: int | None = None,
 ) -> list[AlertOut]:
     """Single query (4 outer joins) to fetch alerts with full evidence."""
-    NewsDE = aliased(DetectedEvent)
-    PriceDE = aliased(DetectedEvent)
-    OptionsDE = aliased(DetectedEvent)
+    news_de = aliased(DetectedEvent)
+    price_de = aliased(DetectedEvent)
+    options_de = aliased(DetectedEvent)
 
     q = (
-        db.query(Alert, SignalCandidate, NewsDE, PriceDE, OptionsDE)
+        db.query(Alert, SignalCandidate, news_de, price_de, options_de)
         .outerjoin(SignalCandidate, Alert.signal_candidate_id == SignalCandidate.id)
-        .outerjoin(NewsDE, NewsDE.id == SignalCandidate.news_event_id)
-        .outerjoin(PriceDE, PriceDE.id == SignalCandidate.price_event_id)
-        .outerjoin(OptionsDE, OptionsDE.id == SignalCandidate.options_event_id)
+        .outerjoin(news_de, news_de.id == SignalCandidate.news_event_id)
+        .outerjoin(price_de, price_de.id == SignalCandidate.price_event_id)
+        .outerjoin(options_de, options_de.id == SignalCandidate.options_event_id)
     )
     if sent_only:
         q = q.filter(Alert.sent_at.isnot(None))
