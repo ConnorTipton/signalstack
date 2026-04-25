@@ -57,9 +57,9 @@ Expected: lockfile updates, pywebview and its transitive deps install successful
 
 - [ ] **Step 1.3: Verify import works**
 
-Run: `uv run python -c "import webview; print(webview.__version__)"`
+Run: `uv run python -c "import webview; from importlib.metadata import version; print(version('pywebview'))"`
 
-Expected: prints a version like `5.4.x`. If it errors with a Cocoa/Qt warning on macOS, that's expected at this point (no window is being created yet) — only the import needs to succeed.
+Expected: prints a version like `5.4`. (Note: pywebview 5.x does not expose `__version__` on the module itself; use `importlib.metadata.version()`.) If it errors with a Cocoa/Qt warning on macOS, that's expected at this point (no window is being created yet) — only the import needs to succeed.
 
 - [ ] **Step 1.4: Commit**
 

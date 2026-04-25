@@ -109,3 +109,34 @@ def wait_for_postgres(*, compose_dir: Path, timeout: float = 10.0, poll_interval
             return True
         time.sleep(poll_interval)
     return False
+
+
+def stop_postgres(*, compose_dir: Path) -> bool:
+    """Run `docker compose stop postgres`. Returns True on success."""
+    try:
+        result = subprocess.run(
+            ["docker", "compose", "stop", "postgres"],
+            cwd=str(compose_dir),
+            capture_output=True,
+            text=True,
+            timeout=30.0,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        log.warning("stop_postgres failed: %s", exc)
+        return False
+    if result.returncode != 0:
+        log.warning("docker compose stop returned %d: %s", result.returncode, result.stderr)
+        return False
+    return True
+
+
+def quit_docker_desktop() -> None:
+    """Quit Docker Desktop on macOS via osascript. No-op if unavailable."""
+    try:
+        subprocess.run(
+            ["osascript", "-e", 'quit app "Docker"'],
+            check=False,
+            timeout=5.0,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        log.warning("quit_docker_desktop: %s", exc)
