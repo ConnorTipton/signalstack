@@ -3,6 +3,7 @@
 Prevents two SignalStack windows from running at once (which would
 collide on port 8000 and other shared state).
 """
+
 from __future__ import annotations
 
 import os
@@ -44,9 +45,7 @@ def acquire_lock(lock_path: Path) -> Iterator[Path]:
         except ValueError:
             existing = 0
         if _pid_alive(existing):
-            raise InstanceLockError(
-                f"SignalStack is already running (PID {existing})."
-            )
+            raise InstanceLockError(f"SignalStack is already running (PID {existing}).")
         # Stale lock — fall through and overwrite
 
     lock_path.write_text(str(os.getpid()))
