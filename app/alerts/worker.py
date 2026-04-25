@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.alerts.formatter import AlertFormatter
 from app.alerts.telegram import TelegramClient
+from app.core.desktop_state import read_sensitivity, sensitivity_mode_to_grades
 from app.db.models.execution import Alert
 from app.db.models.provider import ProviderHealth
 from app.db.models.signals import DetectedEvent, SignalCandidate
@@ -128,7 +129,24 @@ class AlertWorker:
         # Phase A: new candidates → new Alert rows
         candidates = self._fetch_unalerted_candidates(db, batch_size=self._batch_size)
         new_alerts: list[Alert] = []
+
+        # Sensitivity gate: only allowed grades produce alerts.
+        # Rejected candidates are marked with status='rejected' and a
+        # sensitivity_gate rejection_reason, so they are not re-fetched
+        # next cycle. The grade itself is unchanged — the actual emitted
+        # Alert (when admitted) carries the candidate's true grade.
+        mode = read_sensitivity()
+        allowed_grades = sensitivity_mode_to_grades(mode)
+
         for candidate in candidates:
+            if candidate.grade not in allowed_grades:
+                candidate.status = "rejected"
+                candidate.rejection_reason = (
+                    f"sensitivity_gate:{mode}:grade_{candidate.grade}"
+                )
+                candidate.rejected_at = now
+                continue
+
             news_summary = self._fetch_news_summary(db, candidate.news_event_id)
             alert = self._formatter.build(
                 candidate, news_summary=news_summary, dry_run=self._dry_run

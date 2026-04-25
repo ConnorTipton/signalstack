@@ -336,3 +336,71 @@ async def test_worker_run_cancels_cleanly():
             await task
     finally:
         worker_mod.SessionLocal = original
+
+
+def test_alert_worker_high_mode_skips_b_grade(monkeypatch):
+    """In high mode, only A-grade promoted candidates produce alerts."""
+    from unittest.mock import MagicMock
+
+    monkeypatch.setattr("app.alerts.worker.read_sensitivity", lambda: "high")
+
+    candidate_a = MagicMock(spec=SignalCandidate)
+    candidate_a.id = 1
+    candidate_a.grade = "A"
+    candidate_a.status = "promoted"
+    candidate_a.news_event_id = None
+    candidate_a.rejection_reason = None
+    candidate_a.rejected_at = None
+
+    candidate_b = MagicMock(spec=SignalCandidate)
+    candidate_b.id = 2
+    candidate_b.grade = "B"
+    candidate_b.status = "promoted"
+    candidate_b.news_event_id = None
+    candidate_b.rejection_reason = None
+    candidate_b.rejected_at = None
+
+    worker = AlertWorker(telegram_client=None)
+    worker._fetch_unalerted_candidates = MagicMock(return_value=[candidate_a, candidate_b])
+    worker._fetch_pending_alerts = MagicMock(return_value=[])
+    worker._fetch_news_summary = MagicMock(return_value=None)
+    worker._formatter.build = MagicMock(return_value=MagicMock(ticker="AAPL"))
+
+    db = MagicMock()
+    new_count = worker.run_once(db)
+
+    assert new_count == 1
+    assert candidate_b.status == "rejected"
+    assert candidate_b.rejection_reason == "sensitivity_gate:high:grade_B"
+    assert candidate_b.rejected_at is not None
+    assert candidate_a.status == "promoted"
+
+
+def test_alert_worker_low_mode_alerts_a_b_and_c(monkeypatch):
+    """In low mode, A/B/C all alert."""
+    from unittest.mock import MagicMock
+
+    monkeypatch.setattr("app.alerts.worker.read_sensitivity", lambda: "low")
+
+    candidates = []
+    for i, g in enumerate(["A", "B", "C"]):
+        c = MagicMock(spec=SignalCandidate)
+        c.id = i + 1
+        c.grade = g
+        c.status = "promoted"
+        c.news_event_id = None
+        c.rejection_reason = None
+        c.rejected_at = None
+        candidates.append(c)
+
+    worker = AlertWorker(telegram_client=None)
+    worker._fetch_unalerted_candidates = MagicMock(return_value=candidates)
+    worker._fetch_pending_alerts = MagicMock(return_value=[])
+    worker._fetch_news_summary = MagicMock(return_value=None)
+    worker._formatter.build = MagicMock(return_value=MagicMock(ticker="X"))
+
+    new_count = worker.run_once(MagicMock())
+    assert new_count == 3
+    for c in candidates:
+        assert c.status == "promoted"
+        assert c.rejection_reason is None
