@@ -40,8 +40,12 @@ def launch_docker_desktop() -> None:
 
     Returns immediately — the daemon takes additional time to be ready.
     Caller should follow up with wait_for_docker().
+    Does nothing (no exception) if `open` is not available.
     """
-    subprocess.run(["open", "-a", "Docker"], check=False)
+    try:
+        subprocess.run(["open", "-a", "Docker"], check=False)
+    except FileNotFoundError:
+        log.warning("launch_docker_desktop: `open` not found (non-macOS?)")
 
 
 def wait_for_docker(*, timeout: float = 60.0, poll_interval: float = 2.0) -> bool:

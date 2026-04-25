@@ -45,6 +45,11 @@ def test_launch_docker_desktop_invokes_open() -> None:
         assert args[2] == "Docker"
 
 
+def test_launch_docker_desktop_no_exception_when_open_missing() -> None:
+    with patch("subprocess.run", side_effect=FileNotFoundError):
+        system_probes.launch_docker_desktop()  # must not raise
+
+
 def test_wait_for_docker_returns_true_when_already_up() -> None:
     with patch.object(system_probes, "docker_running", return_value=True):
         assert system_probes.wait_for_docker(timeout=5.0, poll_interval=0.1) is True
