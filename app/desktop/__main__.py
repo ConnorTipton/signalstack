@@ -29,6 +29,9 @@ def main() -> int:
     except InstanceLockError as exc:
         print(f"SignalStack: {exc}", file=sys.stderr)
         return 1
+    except FileNotFoundError as exc:
+        print(f"SignalStack: {exc}", file=sys.stderr)
+        return 1
     return 0
 
 
