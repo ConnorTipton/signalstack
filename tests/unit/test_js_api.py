@@ -1,4 +1,5 @@
 """Unit tests for app.desktop.js_api."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -15,6 +16,7 @@ from app.desktop.system import StartResult
 def js_api(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> JsApi:
     state_path = tmp_path / "desktop_state.json"
     from app.core import desktop_state
+
     monkeypatch.setattr(desktop_state, "STATE_FILE", state_path)
 
     buf = LogBuffer(max_lines=200)

@@ -5,6 +5,7 @@ PyWebView automatically converts public methods on this object into
 JSON-serializable. Errors are returned as dicts with ok=False rather
 than raised — the JS side cannot easily catch Python exceptions.
 """
+
 from __future__ import annotations
 
 import logging
